@@ -51,6 +51,22 @@ const images = [
 		name: 'Test Item',
 		price: '$100',
 	},
+	{
+		src: '/test.png',
+		alt: 'Royal Theory Shop',
+		width: 300,
+		height: 500,
+		name: 'Test Item',
+		price: '$100',
+	},
+	{
+		src: '/test.png',
+		alt: 'Royal Theory Shop',
+		width: 300,
+		height: 500,
+		name: 'Test Item',
+		price: '$100',
+	},
 ]
 
 export default function ShopPage() {
