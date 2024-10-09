@@ -3,7 +3,8 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import Image from 'next/image'
-
+import { Button } from '@/components/ui/button'
+import { ShoppingCart } from 'lucide-react'
 export default function NavBar() {
 	const pathname = usePathname()
 	const isShop = pathname.startsWith('/shop')
@@ -11,6 +12,15 @@ export default function NavBar() {
 
 	return (
 		<div className='flex flex-col w-full items-center justify-center pt-4'>
+			<Link href='/cart'>
+				<Button
+					variant='ghost'
+					size='icon'
+					className='absolute top-12 right-12 p-2 hover:bg-gray-100 rounded-full'
+				>
+					<ShoppingCart size={24} />
+				</Button>
+			</Link>
 			<Link href='/'>
 				<Image
 					src='/rt-logo.svg'

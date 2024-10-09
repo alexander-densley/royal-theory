@@ -1,7 +1,9 @@
 import type { Metadata } from 'next'
 import { Inter as FontSans } from 'next/font/google'
 import { cn } from '@/lib/utils'
+import { CartStoreProvider } from '@/providers/cart-store-provider'
 import NavBar from '@/components/navbar'
+import Providers from '@/providers/react-query'
 
 import './globals.css'
 
@@ -27,13 +29,17 @@ export default function RootLayout({
 					fontSans.variable
 				)}
 			>
-				<div className='flex flex-col min-h-screen'>
-					<NavBar />
-					{children}
-					<p className='w-full text-center pb-4 mt-auto'>
-						A ROYAL KIN LLC. &copy; 2024
-					</p>
-				</div>
+				<Providers>
+					<CartStoreProvider>
+						<div className='flex flex-col min-h-screen'>
+							<NavBar />
+							{children}
+							<p className='w-full text-center pb-4 mt-auto'>
+								A ROYAL KIN LLC. &copy; 2024
+							</p>
+						</div>
+					</CartStoreProvider>
+				</Providers>
 			</body>
 		</html>
 	)
