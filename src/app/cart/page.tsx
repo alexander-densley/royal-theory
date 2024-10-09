@@ -88,7 +88,7 @@ function CartProducts({
 }) {
 	const { increaseQuantity, decreaseQuantity } = useCartStore((state) => state)
 	return (
-		<div className='flex flex-col gap-4'>
+		<div className='flex flex-col gap-4 pb-2'>
 			<Image src={imageUrl} alt={name} width={200} height={200} />
 			<div className='flex flex-col'>
 				<p className='font-bold text-lg'>{name}</p>
