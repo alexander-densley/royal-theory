@@ -5,11 +5,14 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { ShoppingCart, ArrowLeft } from 'lucide-react'
+import { useCartStore } from '@/providers/cart-store-provider'
 export default function NavBar() {
 	const pathname = usePathname()
 	const isShop = pathname.startsWith('/shop')
 	const isContact = pathname.startsWith('/contact')
 	const isShopIdPage = pathname.startsWith('/shop/')
+	const { products } = useCartStore((state) => state)
+	const total = products.reduce((acc, product) => acc + product.quantity, 0)
 
 	return (
 		<div className='flex flex-col w-full items-center justify-center pt-4'>
@@ -20,6 +23,11 @@ export default function NavBar() {
 					className='absolute top-12 right-12 p-2 hover:bg-gray-100 rounded-full'
 				>
 					<ShoppingCart size={24} />
+					{total > 0 && (
+						<span className='absolute top-0 right-0 inline-flex items-center justify-center px-2 py-1 text-xs font-bold leading-none text-red-100 bg-red-600 rounded-full'>
+							{total}
+						</span>
+					)}
 				</Button>
 			</Link>
 			<Link href='/'>

@@ -18,7 +18,18 @@ export default function ProductPage({ params }: { params: { id: string } }) {
 		queryFn: () => getProductById(params.id),
 	})
 
-	if (isPending || isError || isFetching) return <div>Loading...</div>
+	if (isPending || isFetching)
+		return (
+			<div className='flex justify-center items-center mt-28'>
+				Product is loading...
+			</div>
+		)
+	if (isError)
+		return (
+			<div className='flex justify-center items-center mt-28'>
+				Sorry, there was an error loading the product, please refresh the page
+			</div>
+		)
 	const product = data.data
 
 	const handleCheckout = async () => {
