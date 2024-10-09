@@ -28,7 +28,10 @@ function CartPage() {
 		window.location.href = paymentLink.url
 	}
 
-	const total = products.reduce((sum, item) => sum + item.price, 0)
+	const total = products.reduce(
+		(sum, item) => sum + item.price * item.quantity,
+		0
+	) // Updated to include quantity
 
 	return (
 		<div className='grid grid-cols-1 sm:grid-cols-3 min-h-full p-8'>
@@ -50,7 +53,10 @@ function CartPage() {
 					{products.map((item) => (
 						<div key={item.priceId} className='flex justify-between'>
 							<span>{item.name}</span>
-							<span>{item.price}</span>
+							<span>{`${item.price} x ${item.quantity} = $${(
+								item.price * item.quantity
+							).toFixed(2)}`}</span>{' '}
+							{/* Updated to include quantity and line item price */}
 						</div>
 					))}
 					<hr className='my-2 border-gray-400' />

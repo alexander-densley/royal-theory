@@ -30,10 +30,26 @@ export const createCartStore = (initState: CartState = defaultInitState) => {
 	return createStore<CartStore>()((set) => ({
 		...initState,
 		addToCart: (product: CartProduct) => {
-			set((state) => ({
-				...state,
-				products: [...state.products, product],
-			}))
+			set((state) => {
+				const existingProduct = state.products.find(
+					(p) => p.priceId === product.priceId
+				)
+				if (existingProduct) {
+					return {
+						...state,
+						products: state.products.map((p) =>
+							p.priceId === product.priceId
+								? { ...p, quantity: p.quantity + 1 }
+								: p
+						),
+					}
+				} else {
+					return {
+						...state,
+						products: [...state.products, product],
+					}
+				}
+			})
 		},
 		removeFromCart: (product: CartProduct) => {
 			set((state) => ({
@@ -57,11 +73,13 @@ export const createCartStore = (initState: CartState = defaultInitState) => {
 		decreaseQuantity: (priceId: string) => {
 			set((state) => ({
 				...state,
-				products: state.products.map((p) =>
-					p.priceId === priceId && p.quantity > 0
-						? { ...p, quantity: p.quantity - 1 }
-						: p
-				),
+				products: state.products
+					.map((p) =>
+						p.priceId === priceId && p.quantity > 0
+							? { ...p, quantity: p.quantity - 1 }
+							: p
+					)
+					.filter((p) => p.quantity > 0), // Remove products with quantity 0
 			}))
 		},
 	}))
