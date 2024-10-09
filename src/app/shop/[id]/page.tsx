@@ -52,18 +52,18 @@ export default function ProductPage({ params }: { params: { id: string } }) {
 			<div className='flex items-center md:items-start justify-center min-w-[300px]'>
 				<Image
 					src={selectedImage ? selectedImage : data.data.main_image}
-					alt={'lol'}
+					alt={product.name}
 					width={400}
 					height={400}
 				/>
 			</div>
-			<div className='flex md:flex-col md:-order-1 gap-6 md:h-[500px] overflow-x-auto md:overflow-y-auto md:ml-auto'>
-				{images.map((product: any, index: any) => (
-					<div key={product} onClick={() => setSelectedImage(product)}>
+			<div className='flex md:flex-col md:-order-1 gap-6 md:h-[500px] md:w-24 overflow-x-scroll overflow-y-auto md:ml-auto'>
+				{images.map((imageUrl: string) => (
+					<div key={imageUrl} onClick={() => setSelectedImage(imageUrl)}>
 						<Image
-							className='size-24'
-							src={product}
-							alt={product}
+							className='min-w-24 size-24 rounded-md'
+							src={imageUrl}
+							alt={imageUrl}
 							width={100}
 							height={100}
 						/>
