@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useCartStore } from '@/providers/cart-store-provider'
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getProductById } from '@/queryFn/products'
 import { Button } from '@/components/ui/button'
@@ -11,6 +11,7 @@ import { toast } from 'sonner'
 
 export default function ProductPage({ params }: { params: { id: string } }) {
 	const [selectedImage, setSelectedImage] = useState<string | null>(null)
+	const [quantity, setQuantity] = useState(1) // New state for quantity
 
 	const { addToCart } = useCartStore((state) => state)
 	const { data, isPending, isError, isFetching } = useQuery({
@@ -38,7 +39,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
 			price: data.data.price,
 			priceId: data.data.price_id,
 			image: data.data.main_image,
-			quantity: 1,
+			quantity: quantity,
 		}
 		addToCart(product)
 		toast.success('Product added to your cart')
@@ -73,6 +74,18 @@ export default function ProductPage({ params }: { params: { id: string } }) {
 				<h1 className='text-2xl font-light'>{product.name}</h1>
 				<p className='text-3xl font-semibold'>{formatPrice(product.price)}</p>
 				<p className='text-xl font-semibold'>{product.description}</p>
+				<div className='flex items-center'>
+					<button
+						onClick={() => setQuantity(Math.max(1, quantity - 1))}
+						className='px-2'
+					>
+						-
+					</button>
+					<span className='mx-2'>{quantity}</span>
+					<button onClick={() => setQuantity(quantity + 1)} className='px-2'>
+						+
+					</button>
+				</div>
 				<Button onClick={handleCheckout} className='w-52'>
 					Add to cart
 				</Button>

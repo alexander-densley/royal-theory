@@ -39,7 +39,7 @@ export const createCartStore = (initState: CartState = defaultInitState) => {
 						...state,
 						products: state.products.map((p) =>
 							p.priceId === product.priceId
-								? { ...p, quantity: p.quantity + 1 }
+								? { ...p, quantity: p.quantity + product.quantity }
 								: p
 						),
 					}
