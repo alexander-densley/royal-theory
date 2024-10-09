@@ -24,7 +24,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
 		const product = {
 			name: data.data.name,
 			price: data.data.price,
-			priceId: 'price_1Q18EAG0FPMdsnW5VvZp7NqT',
+			priceId: data.data.price_id,
 			image: data.data.main_image,
 			quantity: 1,
 		}

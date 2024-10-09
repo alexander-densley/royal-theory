@@ -3,19 +3,25 @@ import Image from 'next/image'
 import { Button } from '@/components/ui/button'
 import { useCartStore } from '@/providers/cart-store-provider'
 import { CartProduct } from '@/stores/cart-store'
-import Stripe from 'stripe'
 import { formatPrice } from '@/lib/utils'
-const stripe = new Stripe(process.env.PUBLIC_STRIPE_KEY as string)
 
 function CartPage() {
 	const { products } = useCartStore((state) => state)
 	const handleCheckout = async () => {
-		const paymentLink = await stripe.paymentLinks.create({
-			line_items: products.map((product: CartProduct) => ({
-				price: product.priceId,
-				quantity: product.quantity,
-			})),
+		const response = await fetch('/api/get-payment-link', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+			},
+			body: JSON.stringify({
+				line_items: products.map((product: CartProduct) => ({
+					price: product.priceId,
+					quantity: product.quantity,
+				})),
+			}),
 		})
+		const paymentLink = await response.json()
+		console.log(paymentLink)
 		window.open(paymentLink.url, '_blank')
 	}
 
