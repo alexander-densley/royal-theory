@@ -25,7 +25,7 @@ function CartPage() {
 		const paymentLink = await response.json()
 		console.log(paymentLink)
 		toast.dismiss(toastId)
-		window.open(paymentLink.url, '_blank')
+		window.location.href = paymentLink.url
 	}
 
 	const total = products.reduce((sum, item) => sum + item.price, 0)
