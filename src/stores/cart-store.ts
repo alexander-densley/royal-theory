@@ -15,8 +15,8 @@ export type CartState = {
 export type CartActions = {
 	addToCart: (product: CartProduct) => void
 	removeFromCart: (product: CartProduct) => void
-	increaseQuantity: (product: CartProduct) => void
-	decreaseQuantity: (product: CartProduct) => void
+	increaseQuantity: (priceId: string) => void
+	decreaseQuantity: (priceId: string) => void
 	clearCart: () => void
 }
 
@@ -46,19 +46,21 @@ export const createCartStore = (initState: CartState = defaultInitState) => {
 		clearCart: () => {
 			set({ products: [] })
 		},
-		increaseQuantity: (product: CartProduct) => {
+		increaseQuantity: (priceId: string) => {
 			set((state) => ({
 				...state,
 				products: state.products.map((p) =>
-					p.name === product.name ? { ...p, quantity: p.quantity + 1 } : p
+					p.priceId === priceId ? { ...p, quantity: p.quantity + 1 } : p
 				),
 			}))
 		},
-		decreaseQuantity: (product: CartProduct) => {
+		decreaseQuantity: (priceId: string) => {
 			set((state) => ({
 				...state,
 				products: state.products.map((p) =>
-					p.name === product.name ? { ...p, quantity: p.quantity - 1 } : p
+					p.priceId === priceId && p.quantity > 0
+						? { ...p, quantity: p.quantity - 1 }
+						: p
 				),
 			}))
 		},

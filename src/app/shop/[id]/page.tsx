@@ -7,6 +7,7 @@ import { useQuery } from '@tanstack/react-query'
 import { getProductById } from '@/queryFn/products'
 import { Button } from '@/components/ui/button'
 import { formatPrice } from '@/lib/utils'
+import { toast } from 'sonner'
 
 export default function ProductPage({ params }: { params: { id: string } }) {
 	const [selectedImage, setSelectedImage] = useState<string | null>(null)
@@ -29,6 +30,7 @@ export default function ProductPage({ params }: { params: { id: string } }) {
 			quantity: 1,
 		}
 		addToCart(product)
+		toast.success('Product added to your cart')
 	}
 
 	const images = [data.data.main_image, ...(data.data.images || [])]

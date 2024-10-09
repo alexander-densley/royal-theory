@@ -4,6 +4,7 @@ import { cn } from '@/lib/utils'
 import { CartStoreProvider } from '@/providers/cart-store-provider'
 import NavBar from '@/components/navbar'
 import Providers from '@/providers/react-query'
+import { Toaster } from '@/components/ui/sonner'
 
 import './globals.css'
 
@@ -40,6 +41,7 @@ export default function RootLayout({
 						</div>
 					</CartStoreProvider>
 				</Providers>
+				<Toaster />
 			</body>
 		</html>
 	)

@@ -4,10 +4,12 @@ import { Button } from '@/components/ui/button'
 import { useCartStore } from '@/providers/cart-store-provider'
 import { CartProduct } from '@/stores/cart-store'
 import { formatPrice } from '@/lib/utils'
+import { toast } from 'sonner'
 
 function CartPage() {
 	const { products } = useCartStore((state) => state)
 	const handleCheckout = async () => {
+		const toastId = toast.loading('Checkout page loading...')
 		const response = await fetch('/api/get-payment-link', {
 			method: 'POST',
 			headers: {
@@ -22,6 +24,7 @@ function CartPage() {
 		})
 		const paymentLink = await response.json()
 		console.log(paymentLink)
+		toast.dismiss(toastId)
 		window.open(paymentLink.url, '_blank')
 	}
 
@@ -36,6 +39,8 @@ function CartPage() {
 						imageUrl={product.image}
 						name={product.name}
 						price={product.price}
+						quantity={product.quantity}
+						priceId={product.priceId}
 					/>
 				))}
 			</div>
@@ -72,18 +77,39 @@ function CartProducts({
 	imageUrl,
 	name,
 	price,
+	quantity,
+	priceId,
 }: {
 	imageUrl: string
 	name: string
 	price: number
+	quantity: number
+	priceId: string
 }) {
+	const { increaseQuantity, decreaseQuantity } = useCartStore((state) => state)
 	return (
 		<div className='flex flex-col gap-4'>
 			<Image src={imageUrl} alt={name} width={200} height={200} />
 			<div className='flex flex-col'>
 				<p className='font-bold text-lg'>{name}</p>
 				<p className='text-sm'>{formatPrice(price)}</p>
-				<p className='text-sm'>Quantity: 1</p>
+				<p className='text-sm'>Quantity: {quantity}</p>
+				<div className='flex items-center gap-2'>
+					<Button
+						variant='outline'
+						className='size-1'
+						onClick={() => decreaseQuantity(priceId)}
+					>
+						-
+					</Button>
+					<Button
+						variant='outline'
+						className='size-1'
+						onClick={() => increaseQuantity(priceId)}
+					>
+						+
+					</Button>
+				</div>
 			</div>
 		</div>
 	)
