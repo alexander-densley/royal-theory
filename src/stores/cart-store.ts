@@ -1,4 +1,5 @@
 import { createStore } from 'zustand/vanilla'
+import { persist } from 'zustand/middleware'
 
 export type CartProduct = {
 	name: string
@@ -27,60 +28,65 @@ export const defaultInitState: CartState = {
 }
 
 export const createCartStore = (initState: CartState = defaultInitState) => {
-	return createStore<CartStore>()((set) => ({
-		...initState,
-		addToCart: (product: CartProduct) => {
-			set((state) => {
-				const existingProduct = state.products.find(
-					(p) => p.priceId === product.priceId
-				)
-				if (existingProduct) {
-					return {
+	return createStore<CartStore>()(
+		persist(
+			(set) => ({
+				...initState,
+				addToCart: (product: CartProduct) => {
+					set((state) => {
+						const existingProduct = state.products.find(
+							(p) => p.priceId === product.priceId
+						)
+						if (existingProduct) {
+							return {
+								...state,
+								products: state.products.map((p) =>
+									p.priceId === product.priceId
+										? { ...p, quantity: p.quantity + product.quantity }
+										: p
+								),
+							}
+						} else {
+							return {
+								...state,
+								products: [...state.products, product],
+							}
+						}
+					})
+				},
+				removeFromCart: (product: CartProduct) => {
+					set((state) => ({
+						...state,
+						products: state.products.filter(
+							(product) => product.name !== product.name
+						),
+					}))
+				},
+				clearCart: () => {
+					set({ products: [] })
+				},
+				increaseQuantity: (priceId: string) => {
+					set((state) => ({
 						...state,
 						products: state.products.map((p) =>
-							p.priceId === product.priceId
-								? { ...p, quantity: p.quantity + product.quantity }
-								: p
+							p.priceId === priceId ? { ...p, quantity: p.quantity + 1 } : p
 						),
-					}
-				} else {
-					return {
+					}))
+				},
+				decreaseQuantity: (priceId: string) => {
+					set((state) => ({
 						...state,
-						products: [...state.products, product],
-					}
-				}
-			})
-		},
-		removeFromCart: (product: CartProduct) => {
-			set((state) => ({
-				...state,
-				products: state.products.filter(
-					(product) => product.name !== product.name
-				),
-			}))
-		},
-		clearCart: () => {
-			set({ products: [] })
-		},
-		increaseQuantity: (priceId: string) => {
-			set((state) => ({
-				...state,
-				products: state.products.map((p) =>
-					p.priceId === priceId ? { ...p, quantity: p.quantity + 1 } : p
-				),
-			}))
-		},
-		decreaseQuantity: (priceId: string) => {
-			set((state) => ({
-				...state,
-				products: state.products
-					.map((p) =>
-						p.priceId === priceId && p.quantity > 0
-							? { ...p, quantity: p.quantity - 1 }
-							: p
-					)
-					.filter((p) => p.quantity > 0), // Remove products with quantity 0
-			}))
-		},
-	}))
+						products: state.products
+							.map((p) =>
+								p.priceId === priceId && p.quantity > 0
+									? { ...p, quantity: p.quantity - 1 }
+									: p
+							)
+							.filter((p) => p.quantity > 0), // Remove products with quantity 0
+					}))
+				},
+			}),
+			{ name: 'cart-storage' }
+		)
+	)
 }
