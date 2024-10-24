@@ -17,12 +17,12 @@ export default function ContactPage() {
 				<h1>
 					<span className='text-lg sm:text-2xl font-semibold'>EMAIL: </span>
 					<a
-						href='mailto:prodbythart@gmail.com'
+						href='mailto:sincerelycourtier@aroyalkin.co'
 						target='_blank'
 						rel='noreferrer'
 						className='text-lg sm:text-2xl font-light hover:text-[#B7C8D7] hover:underline'
 					>
-						PRODBYTHART@GMAIL.COM
+						SINCERELYCOURTIER@AROYALKIN.CO
 					</a>
 				</h1>
 				<Link href='/' className='hover:text-[#B7C8D7] hover:underline mt-28'>
