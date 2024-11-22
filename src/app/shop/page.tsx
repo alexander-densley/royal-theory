@@ -9,13 +9,12 @@ export default async function ShopPage() {
 	if (error) {
 		console.error(error)
 	}
-	console.log(products)
 
 	return (
 		<div className='flex justify-center min-h-screen m-8'>
 			<div className='grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4'>
 				{products?.map((product, index) => (
-					<div key={index} className='flex flex-col'>
+					<div key={index} className='flex flex-col items-center space-y-4'>
 						<Link href={`/shop/${product.id}`}>
 							<Image
 								src={product.main_image}
@@ -25,7 +24,9 @@ export default async function ShopPage() {
 							/>
 						</Link>
 						<div className='flex flex-col items-center justify-center'>
-							<p className='text-lg font-semibold'>{product.name}</p>
+							<p className='text-lg font-semibold text-center'>
+								{product.name}
+							</p>
 							<p>{formatPrice(product.price)}</p>
 						</div>
 					</div>
