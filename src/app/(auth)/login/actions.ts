@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 import { createClient } from '@/utils/supabase/server'
+import { createServiceRoleClient } from '@/utils/supabase/service-role'
 
 export async function login(formData: FormData) {
 	const supabase = await createClient()
@@ -27,11 +28,12 @@ export async function login(formData: FormData) {
 
 export async function signup(formData: FormData) {
 	const supabase = await createClient()
+	const serviceRoleClient = await createServiceRoleClient()
 
 	const inviteCode = formData.get('inviteCode') as string
 
 	// Verify invite code
-	const { data: inviteData, error: inviteError } = await supabase
+	const { data: inviteData, error: inviteError } = await serviceRoleClient
 		.from('invite_codes')
 		.select('*')
 		.eq('code', inviteCode)
