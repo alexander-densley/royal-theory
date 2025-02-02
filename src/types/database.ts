@@ -20,3 +20,11 @@ export interface ProductImage {
 	sort_order: number
 	created_at: string
 }
+
+export interface InviteCode {
+	id: number
+	code: string
+	used: boolean
+	created_at: string
+	used_at: string | null
+}

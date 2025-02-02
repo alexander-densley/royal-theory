@@ -11,6 +11,7 @@ export default function NavBar() {
 	const isShop = pathname.startsWith('/shop')
 	const isContact = pathname.startsWith('/contact')
 	const isShopIdPage = pathname.startsWith('/shop/')
+	const isAdmin = pathname === '/admin'
 	const { products } = useCartStore((state) => state)
 	const total = products.reduce((acc, product) => acc + product.quantity, 0)
 
@@ -61,16 +62,18 @@ export default function NavBar() {
 					</Link>
 				</div>
 			) : (
-				<div className='flex w-full justify-center gap-24 sm:gap-52 mt-16'>
-					<Link
-						href='/shop'
-						className='text-2xl font-semibold hover:text-[#B7C8D7]'
-					>
-						<div className='flex items-center gap-2'>
-							<ArrowLeft size={24} /> BACK TO SHOP
-						</div>
-					</Link>
-				</div>
+				!isAdmin && (
+					<div className='flex w-full justify-center gap-24 sm:gap-52 mt-16'>
+						<Link
+							href='/shop'
+							className='text-2xl font-semibold hover:text-[#B7C8D7]'
+						>
+							<div className='flex items-center gap-2'>
+								<ArrowLeft size={24} /> BACK TO SHOP
+							</div>
+						</Link>
+					</div>
+				)
 			)}
 		</div>
 	)
