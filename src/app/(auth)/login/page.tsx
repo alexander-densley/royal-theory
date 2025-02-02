@@ -1,9 +1,9 @@
-import { login, signup } from './actions'
+import { login } from './actions'
 import { Button } from '@/components/ui/button'
 import { Card, CardHeader, CardContent, CardFooter } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-
+import Link from 'next/link'
 export default function LoginPage() {
 	return (
 		<div className='min-h-screen flex items-center justify-center px-4'>
@@ -41,9 +41,11 @@ export default function LoginPage() {
 						<Button className='w-full' formAction={login}>
 							Log in
 						</Button>
-						<Button className='w-full' variant='outline' formAction={signup}>
-							Sign up
-						</Button>
+						<Link href='/signup'>
+							<Button className='w-full' variant='outline'>
+								Sign up
+							</Button>
+						</Link>
 					</CardFooter>
 				</form>
 			</Card>
