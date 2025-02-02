@@ -6,6 +6,19 @@ import { useStore } from 'zustand'
 
 import { type CartStore, createCartStore } from '@/stores/cart-store'
 
+export type CartProduct = {
+	id: number
+	productId: number
+	name: string
+	price: number
+	priceId: string
+	image: string
+	quantity: number
+	stock: number
+	size: string | null
+	color: string | null
+}
+
 export type CartStoreApi = ReturnType<typeof createCartStore>
 
 export const CartStoreContext = createContext<CartStoreApi | undefined>(

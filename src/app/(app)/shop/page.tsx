@@ -20,6 +20,21 @@ function ProductSkeleton() {
 
 // Product card component
 function ProductCard({ product }: { product: Product }) {
+	// Get the lowest and highest prices from variants
+	const prices = product.variants?.map((v) => v.price) || []
+	const minPrice = prices.length > 0 ? Math.min(...prices) : 0
+	const maxPrice = prices.length > 0 ? Math.max(...prices) : 0
+
+	// Calculate total quantity across all variants
+	const totalQuantity =
+		product.variants?.reduce((sum, v) => sum + v.quantity, 0) || 0
+
+	// Check if any variant is available for pre-order
+	const hasPreorder = product.is_preorder
+
+	// Check if notifications are enabled
+	const hasNotify = product.is_notify
+
 	return (
 		<Link href={`/shop/${product.id}`} className='group h-full'>
 			<div className='flex flex-col h-full p-4 space-y-4 rounded-xl transition-all duration-200 hover:shadow-lg hover:bg-gray-50 border border-transparent hover:border-gray-200'>
@@ -53,31 +68,31 @@ function ProductCard({ product }: { product: Product }) {
 						{product.name}
 					</h2>
 					<p className='text-xl font-semibold text-gray-900'>
-						{formatPrice(product.price)}
+						{minPrice === maxPrice
+							? formatPrice(minPrice)
+							: `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`}
 					</p>
 					<div className='flex flex-wrap gap-2 mt-auto pt-2'>
-						{product.quantity === 0 && (
+						{totalQuantity === 0 && (
 							<span className='px-2 py-1 text-sm font-medium text-red-600 bg-red-50 rounded-full'>
 								Out of Stock
 							</span>
 						)}
-						{product.is_preorder && (
+						{hasPreorder && (
 							<span className='px-2 py-1 text-sm font-medium text-blue-600 bg-blue-50 rounded-full'>
 								Pre-order
 							</span>
 						)}
-						{product.is_notify && (
+						{hasNotify && (
 							<span className='px-2 py-1 text-sm font-medium text-yellow-600 bg-yellow-50 rounded-full'>
 								Notify Me
 							</span>
 						)}
-						{product.quantity > 0 &&
-							!product.is_preorder &&
-							!product.is_notify && (
-								<span className='px-2 py-1 text-sm font-medium text-green-600 bg-green-50 rounded-full'>
-									In Stock
-								</span>
-							)}
+						{totalQuantity > 0 && !hasPreorder && !hasNotify && (
+							<span className='px-2 py-1 text-sm font-medium text-green-600 bg-green-50 rounded-full'>
+								In Stock
+							</span>
+						)}
 					</div>
 				</div>
 			</div>
@@ -97,6 +112,10 @@ async function ProductGrid() {
 				image_url,
 				is_main,
 				sort_order
+			),
+			variants:product_variants (
+				price,
+				quantity
 			)
 		`
 		)

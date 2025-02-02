@@ -89,6 +89,8 @@ function CartPage() {
 							quantity={product.quantity}
 							priceId={product.priceId}
 							stock={product.stock}
+							size={product.size}
+							color={product.color}
 							onRemove={() => {
 								removeFromCart(product as unknown as CartProduct)
 								toast.success(`${product.name} removed from cart`)
@@ -158,6 +160,8 @@ function CartProducts({
 	quantity,
 	priceId,
 	stock = 0,
+	size,
+	color,
 	onRemove,
 }: {
 	imageUrl: string
@@ -166,6 +170,8 @@ function CartProducts({
 	quantity: number
 	priceId: string
 	stock?: number
+	size?: string | null
+	color?: string | null
 	onRemove: () => void
 }) {
 	const { increaseQuantity, decreaseQuantity } = useCartStore((state) => state)
@@ -193,7 +199,14 @@ function CartProducts({
 				<div className='flex justify-between items-start'>
 					<div>
 						<h3 className='font-bold text-lg'>{name}</h3>
-						<p className='text-lg font-semibold text-gray-700'>
+						{(size || color) && (
+							<div className='flex gap-2 text-sm text-gray-600 mt-1'>
+								{size && <span>Size: {size}</span>}
+								{size && color && <span>•</span>}
+								{color && <span>Color: {color}</span>}
+							</div>
+						)}
+						<p className='text-lg font-semibold text-gray-700 mt-1'>
 							{formatPrice(price)}
 						</p>
 					</div>

@@ -8,7 +8,7 @@ import { getProductById } from '@/queryFn/products'
 import { Button } from '@/components/ui/button'
 import { formatPrice } from '@/lib/utils'
 import { toast } from 'sonner'
-import type { Product } from '@/types/database'
+import type { Product, ProductVariant } from '@/types/database'
 import { useParams } from 'next/navigation'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
@@ -17,6 +17,11 @@ import { motion } from 'framer-motion'
 export default function ProductPage() {
 	const params = useParams<{ id: string }>()
 	const [selectedImage, setSelectedImage] = useState<string | null>(null)
+	const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
+		null
+	)
+	const [selectedSize, setSelectedSize] = useState<string>('')
+	const [selectedColor, setSelectedColor] = useState<string>('')
 	const [quantity, setQuantity] = useState(1)
 	const [notifyEmail, setNotifyEmail] = useState('')
 	const [isNotifying, setIsNotifying] = useState(false)
@@ -64,21 +69,59 @@ export default function ProductPage() {
 
 	const product = data.data as Product
 
+	// Get unique sizes and colors
+	const sizes = Array.from(
+		new Set(
+			product.variants
+				?.map((v) => v.size)
+				.filter((size): size is string => Boolean(size)) || []
+		)
+	)
+	const colors = Array.from(
+		new Set(
+			product.variants
+				?.map((v) => v.color)
+				.filter((color): color is string => Boolean(color)) || []
+		)
+	)
+
+	// Update selected variant when size or color changes
+	const handleSizeChange = (size: string) => {
+		setSelectedSize(size)
+		const variant = product.variants?.find(
+			(v) => v.size === size && (!selectedColor || v.color === selectedColor)
+		)
+		setSelectedVariant(variant || null)
+		setQuantity(1)
+	}
+
+	const handleColorChange = (color: string) => {
+		setSelectedColor(color)
+		const variant = product.variants?.find(
+			(v) => v.color === color && (!selectedSize || v.size === selectedSize)
+		)
+		setSelectedVariant(variant || null)
+		setQuantity(1)
+	}
+
 	const handleCheckout = async () => {
-		if (!product.price_id) {
-			toast.error('This product is not available for purchase yet')
+		if (!selectedVariant?.price_id) {
+			toast.error('Please select a variant')
 			return
 		}
 
 		const mainImage = product.product_images.find((img) => img.is_main)
 		const cartProduct = {
-			id: product.id,
+			id: selectedVariant.id,
+			productId: product.id,
 			name: product.name,
-			price: product.price,
-			priceId: product.price_id,
+			price: selectedVariant.price,
+			priceId: selectedVariant.price_id,
 			image: mainImage?.image_url || '',
 			quantity: quantity,
-			stock: product.quantity,
+			size: selectedVariant.size,
+			color: selectedVariant.color,
+			stock: selectedVariant.quantity,
 		}
 		addToCart(cartProduct)
 		toast.success('Product added to your cart')
@@ -90,18 +133,22 @@ export default function ProductPage() {
 			return
 		}
 
+		if (!selectedVariant) {
+			toast.error('Please select a variant')
+			return
+		}
+
 		setIsNotifying(true)
 		try {
-			// You'll need to implement this API endpoint
 			await fetch('/api/notify-stock', {
 				method: 'POST',
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({
-					productId: product.id,
+					variantId: selectedVariant.id,
 					email: notifyEmail,
 				}),
 			})
-			toast.success('You will be notified when this product is back in stock')
+			toast.success('You will be notified when this variant is back in stock')
 			setNotifyEmail('')
 		} catch (error) {
 			console.error(error)
@@ -118,6 +165,13 @@ export default function ProductPage() {
 
 	const mainImage =
 		product.product_images.find((img) => img.is_main)?.image_url || ''
+
+	// Add this function to check if all required variants are selected
+	const areAllVariantsSelected = () => {
+		if (sizes.length > 0 && !selectedSize) return false
+		if (colors.length > 0 && !selectedColor) return false
+		return true
+	}
 
 	return (
 		<div>
@@ -190,22 +244,30 @@ export default function ProductPage() {
 								</h1>
 								<div className='mt-4 flex items-center justify-between'>
 									<p className='text-3xl font-bold text-blue-600'>
-										{formatPrice(product.price)}
+										{selectedVariant
+											? formatPrice(selectedVariant.price)
+											: product.variants?.length
+											? (() => {
+													// Get all valid variant prices based on selected size/color
+													//TODO: when a size is selected, it sets the price, unless both are selected it shouldnt update the price really
+													const validVariants = product.variants.filter(
+														(v) =>
+															(!selectedSize || v.size === selectedSize) &&
+															(!selectedColor || v.color === selectedColor)
+													)
+
+													const prices = [
+														...new Set(validVariants.map((v) => v.price)),
+													]
+
+													return prices.length > 0
+														? prices.length > 1
+															? `From ${formatPrice(Math.min(...prices))}`
+															: formatPrice(prices[0])
+														: 'Price not available'
+											  })()
+											: 'Price not available'}
 									</p>
-									<div className='flex items-center'>
-										<div
-											className={cn(
-												'px-3 py-1 rounded-full text-sm font-medium',
-												product.quantity > 0
-													? 'bg-green-100 text-green-800'
-													: 'bg-red-100 text-red-800'
-											)}
-										>
-											{product.quantity > 0
-												? `${product.quantity} in stock`
-												: 'Out of stock'}
-										</div>
-									</div>
 								</div>
 							</div>
 
@@ -216,98 +278,169 @@ export default function ProductPage() {
 								</p>
 							</div>
 
-							{/* Sizes */}
-							{product.sizes && product.sizes.length > 0 && (
-								<div className='space-y-4'>
-									<h3 className='text-sm font-medium text-gray-900'>
-										Available Sizes
-									</h3>
-									<div className='flex flex-wrap gap-2'>
-										{product.sizes.map((size) => (
-											<span
-												key={size}
-												className='px-3 py-1.5 border rounded-md text-sm font-medium hover:bg-gray-50 transition-colors cursor-pointer'
-											>
-												{size}
-											</span>
-										))}
+							{/* Variant selection */}
+							<div className='space-y-4'>
+								{sizes.length > 0 && (
+									<div className='space-y-2'>
+										<label className='text-sm font-medium text-gray-900'>
+											Size
+										</label>
+										<div className='flex flex-wrap gap-2'>
+											{sizes.map((size) => (
+												<Button
+													key={size}
+													variant={
+														selectedSize === size ? 'default' : 'outline'
+													}
+													size='sm'
+													onClick={() => handleSizeChange(size)}
+													className='min-w-[3rem]'
+												>
+													{size}
+												</Button>
+											))}
+										</div>
 									</div>
-								</div>
-							)}
+								)}
+
+								{colors.length > 0 && (
+									<div className='space-y-2'>
+										<label className='text-sm font-medium text-gray-900'>
+											Color
+										</label>
+										<div className='flex flex-wrap gap-2'>
+											{colors.map((color) => (
+												<Button
+													key={color}
+													variant={
+														selectedColor === color ? 'default' : 'outline'
+													}
+													size='sm'
+													onClick={() => handleColorChange(color)}
+													className='min-w-[4rem]'
+												>
+													{color}
+												</Button>
+											))}
+										</div>
+									</div>
+								)}
+							</div>
 
 							{/* Add to cart section */}
 							<div className='fixed lg:relative bottom-0 left-0 right-0 p-4 lg:p-0 border-t border-gray-200 lg:border-0 z-10 bg-white lg:bg-transparent'>
 								<div className='max-w-7xl mx-auto'>
-									{product.quantity > 0 && !product.is_notify && (
-										<div className='flex flex-col gap-4'>
-											<div className='flex items-center justify-between gap-4'>
-												<div className='flex items-center rounded-lg border border-gray-200'>
-													<button
-														onClick={() =>
-															setQuantity(Math.max(1, quantity - 1))
-														}
-														className='p-3 hover:bg-gray-50 transition-colors rounded-l-lg disabled:opacity-50'
-														disabled={quantity <= 1}
-													>
-														<svg
-															className='w-4 h-4'
-															fill='none'
-															stroke='currentColor'
-															viewBox='0 0 24 24'
+									{selectedVariant && areAllVariantsSelected() ? (
+										<>
+											{selectedVariant.quantity > 0 && !product.is_notify ? (
+												<div className='flex flex-col gap-4'>
+													<div className='flex items-center justify-between gap-4'>
+														<div className='flex items-center rounded-lg border border-gray-200'>
+															<button
+																onClick={() =>
+																	setQuantity(Math.max(1, quantity - 1))
+																}
+																className='p-3 hover:bg-gray-50 transition-colors rounded-l-lg disabled:opacity-50'
+																disabled={quantity <= 1}
+															>
+																<svg
+																	className='w-4 h-4'
+																	fill='none'
+																	stroke='currentColor'
+																	viewBox='0 0 24 24'
+																>
+																	<path
+																		strokeLinecap='round'
+																		strokeLinejoin='round'
+																		strokeWidth={2}
+																		d='M20 12H4'
+																	/>
+																</svg>
+															</button>
+															<span className='px-6 py-2 text-center min-w-[3rem] font-medium'>
+																{quantity}
+															</span>
+															<button
+																onClick={() => setQuantity(quantity + 1)}
+																className='p-3 hover:bg-gray-50 transition-colors rounded-r-lg disabled:opacity-50'
+																disabled={quantity >= selectedVariant.quantity}
+															>
+																<svg
+																	className='w-4 h-4'
+																	fill='none'
+																	stroke='currentColor'
+																	viewBox='0 0 24 24'
+																>
+																	<path
+																		strokeLinecap='round'
+																		strokeLinejoin='round'
+																		strokeWidth={2}
+																		d='M12 4v16m8-8H4'
+																	/>
+																</svg>
+															</button>
+														</div>
+														<Button
+															onClick={handleCheckout}
+															className='flex-1 py-6 text-lg font-medium transition-transform duration-200 hover:scale-[1.02]'
+															disabled={
+																!selectedVariant ||
+																quantity > selectedVariant.quantity ||
+																!selectedVariant.price_id
+															}
 														>
-															<path
-																strokeLinecap='round'
-																strokeLinejoin='round'
-																strokeWidth={2}
-																d='M20 12H4'
-															/>
-														</svg>
-													</button>
-													<span className='px-6 py-2 text-center min-w-[3rem] font-medium'>
-														{quantity}
-													</span>
-													<button
-														onClick={() => setQuantity(quantity + 1)}
-														className='p-3 hover:bg-gray-50 transition-colors rounded-r-lg disabled:opacity-50'
-														disabled={quantity >= product.quantity}
-													>
-														<svg
-															className='w-4 h-4'
-															fill='none'
-															stroke='currentColor'
-															viewBox='0 0 24 24'
-														>
-															<path
-																strokeLinecap='round'
-																strokeLinejoin='round'
-																strokeWidth={2}
-																d='M12 4v16m8-8H4'
-															/>
-														</svg>
-													</button>
+															{product.is_preorder
+																? 'Pre-order Now'
+																: 'Add to Cart'}
+														</Button>
+													</div>
+													<p className='text-sm text-gray-500 text-center lg:text-left'>
+														{selectedVariant.quantity} items available
+													</p>
 												</div>
-												<Button
-													onClick={handleCheckout}
-													className='flex-1 py-6 text-lg font-medium transition-transform duration-200 hover:scale-[1.02]'
-													disabled={
-														quantity > product.quantity || !product.price_id
-													}
-												>
-													{product.is_preorder
-														? 'Pre-order Now'
-														: 'Add to Cart'}
-												</Button>
-											</div>
-											<p className='text-sm text-gray-500 text-center lg:text-left'>
-												{product.quantity} items available
-											</p>
-										</div>
-									)}
-
-									{product.is_notify && (
-										<div className='rounded-lg bg-blue-50 p-6'>
+											) : (
+												<div className='rounded-lg bg-blue-50 p-6'>
+													<div className='flex flex-col gap-4'>
+														<p className='text-blue-600 font-medium flex items-center gap-2'>
+															<svg
+																className='w-5 h-5'
+																fill='none'
+																stroke='currentColor'
+																viewBox='0 0 24 24'
+															>
+																<path
+																	strokeLinecap='round'
+																	strokeLinejoin='round'
+																	strokeWidth={2}
+																	d='M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9'
+																/>
+															</svg>
+															Get notified when available
+														</p>
+														<div className='flex gap-2'>
+															<input
+																type='email'
+																placeholder='Enter your email'
+																value={notifyEmail}
+																onChange={(e) => setNotifyEmail(e.target.value)}
+																className='flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500'
+															/>
+															<Button
+																onClick={handleNotifyMe}
+																variant='outline'
+																disabled={isNotifying}
+															>
+																{isNotifying ? 'Setting up...' : 'Notify Me'}
+															</Button>
+														</div>
+													</div>
+												</div>
+											)}
+										</>
+									) : (
+										<div className='rounded-lg bg-gray-50 p-6'>
 											<div className='flex flex-col gap-4'>
-												<p className='text-blue-600 font-medium flex items-center gap-2'>
+												<p className='text-gray-600 font-medium flex items-center gap-2'>
 													<svg
 														className='w-5 h-5'
 														fill='none'
@@ -318,27 +451,19 @@ export default function ProductPage() {
 															strokeLinecap='round'
 															strokeLinejoin='round'
 															strokeWidth={2}
-															d='M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9'
+															d='M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z'
 														/>
 													</svg>
-													Get notified when available
+													Please select{' '}
+													{!selectedSize && sizes.length > 0 ? 'a size' : ''}
+													{!selectedSize &&
+													sizes.length > 0 &&
+													!selectedColor &&
+													colors.length > 0
+														? ' and '
+														: ''}
+													{!selectedColor && colors.length > 0 ? 'a color' : ''}
 												</p>
-												<div className='flex gap-2'>
-													<input
-														type='email'
-														placeholder='Enter your email'
-														value={notifyEmail}
-														onChange={(e) => setNotifyEmail(e.target.value)}
-														className='flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500'
-													/>
-													<Button
-														onClick={handleNotifyMe}
-														variant='outline'
-														disabled={isNotifying}
-													>
-														{isNotifying ? 'Setting up...' : 'Notify Me'}
-													</Button>
-												</div>
 											</div>
 										</div>
 									)}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ProductImage } from '@/types/database'
+import { ProductImage, ProductVariant } from '@/types/database'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import Image from 'next/image'
@@ -12,13 +12,14 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2, X, Trash2 } from 'lucide-react'
+import { Loader2, X, Trash2, Plus } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import {
 	Popover,
 	PopoverContent,
 	PopoverTrigger,
 } from '@/components/ui/popover'
+import { toast } from 'sonner'
 
 export default function EditProductPage() {
 	const router = useRouter()
@@ -30,13 +31,12 @@ export default function EditProductPage() {
 	const [formData, setFormData] = useState({
 		name: '',
 		description: '',
-		price: 0,
-		quantity: 0,
 		is_preorder: false,
 		is_notify: false,
-		sizes: [] as string[],
-		price_id: '',
 	})
+
+	const [variants, setVariants] = useState<ProductVariant[]>([])
+	const [deletedVariantIds, setDeletedVariantIds] = useState<number[]>([])
 
 	const [imageFiles, setImageFiles] = useState<File[]>([])
 	const [pendingImageChanges, setPendingImageChanges] = useState<{
@@ -52,7 +52,13 @@ export default function EditProductPage() {
 		queryFn: async () => {
 			const { data, error } = await supabase
 				.from('products')
-				.select(`*, product_images (*)`)
+				.select(
+					`
+					*,
+					product_images (*),
+					variants:product_variants (*)
+				`
+				)
 				.eq('id', id)
 				.single()
 
@@ -64,6 +70,7 @@ export default function EditProductPage() {
 	// Reset pending changes when product data changes
 	useEffect(() => {
 		setPendingImageChanges({ deletedImageIds: [] })
+		setDeletedVariantIds([])
 	}, [product])
 
 	// Set initial form data when product is loaded
@@ -72,13 +79,10 @@ export default function EditProductPage() {
 			setFormData({
 				name: product.name,
 				description: product.description || '',
-				price: product.price,
-				quantity: product.quantity,
 				is_preorder: product.is_preorder,
 				is_notify: product.is_notify,
-				sizes: product.sizes || [],
-				price_id: product.price_id || '',
 			})
+			setVariants(product.variants || [])
 		}
 	}, [product])
 
@@ -153,43 +157,136 @@ export default function EditProductPage() {
 
 	// Mutation for updating product
 	const productMutation = useMutation({
-		mutationFn: async (
-			data: Omit<typeof formData, 'sizes'> & { sizes: string[] }
-		) => {
-			const { error } = await supabase
+		mutationFn: async (data: typeof formData) => {
+			// Update product
+			const { error: productError } = await supabase
 				.from('products')
 				.update(data)
 				.eq('id', params.id)
-			if (error) throw error
+			if (productError) throw productError
+
+			// Delete removed variants
+			if (deletedVariantIds.length > 0) {
+				const { error: deleteError } = await supabase
+					.from('product_variants')
+					.delete()
+					.in('id', deletedVariantIds)
+				if (deleteError) throw deleteError
+			}
+
+			// Check for duplicate combinations
+			const combinations = new Set()
+			const duplicates = variants.filter((variant) => {
+				const key = `${variant.size}-${variant.color}`
+				if (combinations.has(key)) return true
+				combinations.add(key)
+				return false
+			})
+
+			if (duplicates.length > 0) {
+				throw new Error('Duplicate size and color combinations are not allowed')
+			}
+
+			// Update or create variants
+			for (const variant of variants) {
+				if (variant.id && variant.id !== 0) {
+					// Check if this update would create a duplicate
+					const { data: existingVariants } = await supabase
+						.from('product_variants')
+						.select('id')
+						.eq('product_id', params.id)
+						.eq('size', variant.size)
+						.eq('color', variant.color)
+						.neq('id', variant.id)
+
+					if (existingVariants && existingVariants.length > 0) {
+						throw new Error(
+							`A variant with size ${variant.size} and color ${variant.color} already exists`
+						)
+					}
+
+					// Update existing variant
+					const { error: updateError } = await supabase
+						.from('product_variants')
+						.update({
+							size: variant.size,
+							color: variant.color,
+							price: variant.price,
+							quantity: variant.quantity,
+							price_id: variant.price_id,
+							sku: variant.sku,
+						})
+						.eq('id', variant.id)
+					if (updateError) throw updateError
+				} else {
+					// Check if this new variant would create a duplicate
+					const { data: existingVariants } = await supabase
+						.from('product_variants')
+						.select('id')
+						.eq('product_id', params.id)
+						.eq('size', variant.size)
+						.eq('color', variant.color)
+
+					if (existingVariants && existingVariants.length > 0) {
+						throw new Error(
+							`A variant with size ${variant.size} and color ${variant.color} already exists`
+						)
+					}
+
+					// Create new variant - omit the id field
+					const { error: createError } = await supabase
+						.from('product_variants')
+						.insert({
+							product_id: parseInt(id),
+							size: variant.size,
+							color: variant.color,
+							price: variant.price,
+							quantity: variant.quantity,
+							price_id: variant.price_id,
+							sku: variant.sku,
+						})
+					if (createError) throw createError
+				}
+			}
+
 			return parseInt(id)
 		},
 		onSuccess: async (productId) => {
-			// Handle image changes
-			if (pendingImageChanges.deletedImageIds.length > 0) {
-				await deleteImageMutation.mutateAsync(
-					pendingImageChanges.deletedImageIds
-				)
+			try {
+				// Handle image changes
+				if (pendingImageChanges.deletedImageIds.length > 0) {
+					await deleteImageMutation.mutateAsync(
+						pendingImageChanges.deletedImageIds
+					)
+				}
+
+				if (pendingImageChanges.mainImageId) {
+					await setMainImageMutation.mutateAsync({
+						imageId: pendingImageChanges.mainImageId,
+						productId,
+					})
+				}
+
+				if (imageFiles.length > 0) {
+					await uploadImageMutation.mutateAsync({
+						productId,
+						files: imageFiles,
+					})
+				}
+
+				// Invalidate both the single product and products list queries
+				queryClient.invalidateQueries({ queryKey: ['product', id] })
+				queryClient.invalidateQueries({ queryKey: ['products'] })
+
+				toast.success('Product updated successfully')
+				router.push('/admin')
+				// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			} catch (error: any) {
+				toast.error(error.message || 'Failed to update images')
 			}
-
-			if (pendingImageChanges.mainImageId) {
-				await setMainImageMutation.mutateAsync({
-					imageId: pendingImageChanges.mainImageId,
-					productId,
-				})
-			}
-
-			if (imageFiles.length > 0) {
-				await uploadImageMutation.mutateAsync({
-					productId,
-					files: imageFiles,
-				})
-			}
-
-			// Invalidate both the single product and products list queries
-			queryClient.invalidateQueries({ queryKey: ['product', id] })
-			queryClient.invalidateQueries({ queryKey: ['products'] })
-
-			router.push('/admin')
+		},
+		onError: (error: Error) => {
+			toast.error(error.message)
 		},
 	})
 
@@ -210,12 +307,19 @@ export default function EditProductPage() {
 
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault()
-		const productData = {
-			...formData,
-			price: Number(formData.price),
-			quantity: Number(formData.quantity),
+
+		// Validate variants
+		if (!variants.length) {
+			alert('Please add at least one variant')
+			return
 		}
-		await productMutation.mutateAsync(productData)
+
+		if (variants.some((v) => !v.price)) {
+			alert('All variants must have a price')
+			return
+		}
+
+		await productMutation.mutateAsync(formData)
 	}
 
 	const handleDeleteImage = (imageId: number) => {
@@ -230,6 +334,53 @@ export default function EditProductPage() {
 			...prev,
 			mainImageId: imageId,
 		}))
+	}
+
+	const addVariant = () => {
+		setVariants([
+			...variants,
+			{
+				id: 0, // Will be replaced with actual ID after creation
+				product_id: parseInt(id),
+				size: '',
+				color: '',
+				price: 0,
+				quantity: 0,
+				price_id: '',
+				sku: '',
+				created_at: new Date().toISOString(),
+			},
+		])
+	}
+
+	const removeVariant = (index: number) => {
+		const variant = variants[index]
+		if (variant.id) {
+			setDeletedVariantIds([...deletedVariantIds, variant.id])
+		}
+		setVariants(variants.filter((_, i) => i !== index))
+	}
+
+	const updateVariant = (
+		index: number,
+		field: keyof ProductVariant,
+		value: string | number
+	) => {
+		const newVariants = [...variants]
+		// For quantity and price, ensure we handle empty string and zero correctly
+		if (field === 'quantity' || field === 'price') {
+			const numValue = typeof value === 'string' ? parseFloat(value) : value
+			newVariants[index] = {
+				...newVariants[index],
+				[field]: value === '' ? 0 : isNaN(numValue) ? 0 : numValue,
+			}
+		} else {
+			newVariants[index] = {
+				...newVariants[index],
+				[field]: value,
+			}
+		}
+		setVariants(newVariants)
 	}
 
 	// Add handleDelete function before return statement
@@ -260,7 +411,7 @@ export default function EditProductPage() {
 
 	return (
 		<div className='container mx-auto p-4'>
-			<Card className='max-w-2xl mx-auto'>
+			<Card className='max-w-4xl mx-auto'>
 				<CardHeader className='flex flex-row items-center justify-between'>
 					<CardTitle>Edit Product</CardTitle>
 					<Popover>
@@ -302,127 +453,174 @@ export default function EditProductPage() {
 					</Popover>
 				</CardHeader>
 				<CardContent>
-					<form onSubmit={handleSubmit} className='space-y-4'>
-						<div className='space-y-2'>
-							<Label htmlFor='name'>Name</Label>
-							<Input
-								id='name'
-								value={formData.name}
-								onChange={(e) =>
-									setFormData({ ...formData, name: e.target.value })
-								}
-								required
-							/>
-						</div>
-
-						<div className='space-y-2'>
-							<Label htmlFor='description'>Description</Label>
-							<Textarea
-								id='description'
-								value={formData.description}
-								onChange={(e) =>
-									setFormData({ ...formData, description: e.target.value })
-								}
-								rows={3}
-							/>
-						</div>
-
-						<div className='grid grid-cols-2 gap-4'>
+					<form onSubmit={handleSubmit} className='space-y-6'>
+						<div className='space-y-4'>
 							<div className='space-y-2'>
-								<Label htmlFor='price'>Price</Label>
+								<Label htmlFor='name'>Name</Label>
 								<Input
-									id='price'
-									type='number'
-									value={formData.price || ''}
+									id='name'
+									value={formData.name}
 									onChange={(e) =>
-										setFormData({
-											...formData,
-											price:
-												e.target.value === ''
-													? 0
-													: Math.max(0, parseFloat(e.target.value) || 0),
-										})
+										setFormData({ ...formData, name: e.target.value })
 									}
 									required
-									min='0'
-									step='0.01'
 								/>
 							</div>
 
 							<div className='space-y-2'>
-								<Label htmlFor='quantity'>Quantity</Label>
-								<Input
-									id='quantity'
-									type='number'
-									value={formData.quantity || ''}
+								<Label htmlFor='description'>Description</Label>
+								<Textarea
+									id='description'
+									value={formData.description}
 									onChange={(e) =>
-										setFormData({
-											...formData,
-											quantity:
-												e.target.value === ''
-													? 0
-													: Math.max(0, parseInt(e.target.value) || 0),
-										})
+										setFormData({ ...formData, description: e.target.value })
 									}
-									required
-									min='0'
+									rows={3}
 								/>
+							</div>
+
+							<div className='flex gap-6'>
+								<div className='flex items-center space-x-2'>
+									<Checkbox
+										id='is_preorder'
+										checked={formData.is_preorder}
+										onCheckedChange={(checked: boolean) =>
+											setFormData({
+												...formData,
+												is_preorder: checked,
+											})
+										}
+									/>
+									<Label htmlFor='is_preorder'>Pre-order</Label>
+								</div>
+
+								<div className='flex items-center space-x-2'>
+									<Checkbox
+										id='is_notify'
+										checked={formData.is_notify}
+										onCheckedChange={(checked: boolean) =>
+											setFormData({
+												...formData,
+												is_notify: checked,
+											})
+										}
+									/>
+									<Label htmlFor='is_notify'>Notify when available</Label>
+								</div>
 							</div>
 						</div>
 
-						<div className='space-y-2'>
-							<Label htmlFor='price_id'>Stripe Price ID</Label>
-							<Input
-								id='price_id'
-								value={formData.price_id}
-								onChange={(e) =>
-									setFormData({ ...formData, price_id: e.target.value })
-								}
-								placeholder='price_...'
-							/>
-						</div>
-
-						<div className='space-y-2'>
-							<Label htmlFor='sizes'>Sizes (comma-separated)</Label>
-							<Input
-								id='sizes'
-								value={formData.sizes.join(', ')}
-								onChange={(e) =>
-									setFormData({
-										...formData,
-										sizes: e.target.value.split(',').map((s) => s.trim()),
-									})
-								}
-							/>
-						</div>
-
-						<div className='flex gap-6'>
-							<div className='flex items-center space-x-2'>
-								<Checkbox
-									id='is_preorder'
-									checked={formData.is_preorder}
-									onCheckedChange={(checked: boolean) =>
-										setFormData({
-											...formData,
-											is_preorder: checked,
-										})
-									}
-								/>
-								<Label htmlFor='is_preorder'>Pre-order</Label>
+						<div className='space-y-4'>
+							<div className='flex justify-between items-center'>
+								<Label>Product Variants</Label>
+								<Button
+									type='button'
+									variant='outline'
+									size='sm'
+									onClick={addVariant}
+								>
+									<Plus className='h-4 w-4 mr-2' />
+									Add Variant
+								</Button>
 							</div>
 
-							<div className='flex items-center space-x-2'>
-								<Checkbox
-									id='is_notify'
-									checked={formData.is_notify}
-									onCheckedChange={(checked: boolean) =>
-										setFormData({
-											...formData,
-											is_notify: checked,
-										})
-									}
-								/>
-								<Label htmlFor='is_notify'>Notify when available</Label>
+							<div className='space-y-4'>
+								{variants.map((variant, index) => (
+									<Card key={variant.id || index}>
+										<CardContent className='pt-6'>
+											<div className='flex justify-between mb-4'>
+												<h3 className='font-medium'>Variant {index + 1}</h3>
+												{variants.length > 1 && (
+													<Button
+														type='button'
+														variant='ghost'
+														size='sm'
+														onClick={() => removeVariant(index)}
+													>
+														<X className='h-4 w-4' />
+													</Button>
+												)}
+											</div>
+											<div className='grid grid-cols-2 gap-4'>
+												<div className='space-y-2'>
+													<Label>Size</Label>
+													<Input
+														value={variant.size || ''}
+														onChange={(e) =>
+															updateVariant(index, 'size', e.target.value)
+														}
+														placeholder='e.g., Small, Medium, Large'
+													/>
+												</div>
+												<div className='space-y-2'>
+													<Label>Color</Label>
+													<Input
+														value={variant.color || ''}
+														onChange={(e) =>
+															updateVariant(index, 'color', e.target.value)
+														}
+														placeholder='e.g., Red, Blue, Green'
+													/>
+												</div>
+												<div className='space-y-2'>
+													<Label>Price</Label>
+													<Input
+														type='number'
+														value={variant.price || ''}
+														onChange={(e) =>
+															updateVariant(
+																index,
+																'price',
+																Math.max(0, parseFloat(e.target.value) || 0)
+															)
+														}
+														min='0'
+														step='0.01'
+														required
+													/>
+												</div>
+												<div className='space-y-2'>
+													<Label>Quantity</Label>
+													<Input
+														type='number'
+														value={variant.quantity}
+														onChange={(e) => {
+															const value = e.target.value
+															// Allow empty input to be passed through
+															updateVariant(
+																index,
+																'quantity',
+																value === '' ? value : parseFloat(value)
+															)
+														}}
+														min='0'
+														required
+													/>
+												</div>
+												<div className='space-y-2'>
+													<Label>Stripe Price ID</Label>
+													<Input
+														value={variant.price_id || ''}
+														onChange={(e) =>
+															updateVariant(index, 'price_id', e.target.value)
+														}
+														placeholder='price_...'
+													/>
+												</div>
+												<div className='space-y-2'>
+													<Label>SKU</Label>
+													<Input
+														value={variant.sku || ''}
+														onChange={(e) =>
+															updateVariant(index, 'sku', e.target.value)
+														}
+														placeholder='Stock Keeping Unit'
+													/>
+												</div>
+											</div>
+										</CardContent>
+									</Card>
+								))}
 							</div>
 						</div>
 

@@ -10,6 +10,8 @@ export interface Product {
 	price_id: string | null
 	created_at: string
 	product_images: ProductImage[]
+	variants: ProductVariant[]
+	sort_order: number
 }
 
 export interface ProductImage {
@@ -18,6 +20,26 @@ export interface ProductImage {
 	image_url: string
 	is_main: boolean
 	sort_order: number
+	created_at: string
+}
+
+export interface ProductVariant {
+	id: number
+	product_id: number
+	size: string | null
+	color: string | null
+	price: number
+	quantity: number
+	price_id: string | null
+	sku: string | null
+	created_at: string
+}
+
+export interface StockNotification {
+	id: number
+	variant_id: number
+	email: string
+	is_notified: boolean
 	created_at: string
 }
 

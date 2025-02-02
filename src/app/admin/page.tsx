@@ -53,6 +53,24 @@ function SortableProductCard({
 		opacity: isDragging ? 0.3 : 1,
 	}
 
+	// Calculate variant stats
+	const variantStats = {
+		totalQuantity:
+			product.variants?.reduce((sum, v) => sum + v.quantity, 0) || 0,
+		priceRange: product.variants?.length
+			? {
+					min: Math.min(...product.variants.map((v) => v.price)),
+					max: Math.max(...product.variants.map((v) => v.price)),
+			  }
+			: { min: 0, max: 0 },
+		sizes: Array.from(
+			new Set(product.variants?.map((v) => v.size).filter(Boolean) || [])
+		),
+		colors: Array.from(
+			new Set(product.variants?.map((v) => v.color).filter(Boolean) || [])
+		),
+	}
+
 	return (
 		<div ref={setNodeRef} style={style}>
 			<Card>
@@ -69,19 +87,24 @@ function SortableProductCard({
 							<div>
 								<h3 className='font-semibold text-lg'>{product.name}</h3>
 								<p className='text-sm text-muted-foreground'>
-									${product.price}
+									{variantStats.priceRange
+										? variantStats.priceRange.min ===
+										  variantStats.priceRange.max
+											? `$${variantStats.priceRange.min}`
+											: `$${variantStats.priceRange.min} - $${variantStats.priceRange.max}`
+										: 'No price set'}
 								</p>
-								{product.price_id && (
-									<p className='text-xs text-muted-foreground mt-1'>
-										Price ID: {product.price_id}
+								<p className='text-sm text-muted-foreground mt-1'>
+									Total Quantity: {variantStats.totalQuantity}
+								</p>
+								{variantStats.sizes.length > 0 && (
+									<p className='text-sm text-muted-foreground mt-1'>
+										Sizes: {variantStats.sizes.join(', ')}
 									</p>
 								)}
-								<p className='text-sm text-muted-foreground mt-1'>
-									Quantity: {product.quantity}
-								</p>
-								{product.sizes && product.sizes.length > 0 && (
+								{variantStats.colors.length > 0 && (
 									<p className='text-sm text-muted-foreground mt-1'>
-										Sizes: {product.sizes.join(', ')}
+										Colors: {variantStats.colors.join(', ')}
 									</p>
 								)}
 								{product.description && (
@@ -205,7 +228,13 @@ export default function AdminPage() {
 		queryFn: async () => {
 			const { data, error } = await supabase
 				.from('products')
-				.select(`*, product_images (*)`)
+				.select(
+					`
+					*,
+					product_images (*),
+					variants:product_variants (*)
+				`
+				)
 				.order('sort_order', { ascending: true })
 
 			if (error) throw error

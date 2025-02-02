@@ -9,8 +9,18 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2 } from 'lucide-react'
+import { Loader2, Plus, X } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { toast } from 'sonner'
+
+interface Variant {
+	size: string
+	color: string
+	price: number
+	quantity: number
+	price_id: string
+	sku: string
+}
 
 export default function AddProductPage() {
 	const router = useRouter()
@@ -20,13 +30,20 @@ export default function AddProductPage() {
 	const [formData, setFormData] = useState({
 		name: '',
 		description: '',
-		price: 0,
-		quantity: 0,
 		is_preorder: false,
 		is_notify: false,
-		sizes: [] as string[],
-		price_id: '',
 	})
+
+	const [variants, setVariants] = useState<Variant[]>([
+		{
+			size: '',
+			color: '',
+			price: 0,
+			quantity: 0,
+			price_id: '',
+			sku: '',
+		},
+	])
 
 	const [imageFiles, setImageFiles] = useState<File[]>([])
 
@@ -65,15 +82,28 @@ export default function AddProductPage() {
 
 	// Mutation for creating products
 	const productMutation = useMutation({
-		mutationFn: async (
-			data: Omit<typeof formData, 'sizes'> & { sizes: string[] }
-		) => {
-			const { data: newProduct, error } = await supabase
+		mutationFn: async (data: typeof formData) => {
+			// First, create the product
+			const { data: newProduct, error: productError } = await supabase
 				.from('products')
 				.insert(data)
 				.select()
-			if (error) throw error
-			return newProduct?.[0]?.id
+			if (productError) throw productError
+
+			const productId = newProduct[0].id
+
+			// Then, create all variants
+			const { error: variantError } = await supabase
+				.from('product_variants')
+				.insert(
+					variants.map((variant) => ({
+						...variant,
+						product_id: productId,
+					}))
+				)
+			if (variantError) throw variantError
+
+			return productId
 		},
 		onSuccess: async (productId) => {
 			if (imageFiles.length > 0) {
@@ -84,147 +114,248 @@ export default function AddProductPage() {
 			}
 			queryClient.invalidateQueries({ queryKey: ['products'] })
 			router.push('/admin')
+			toast.success('Product created successfully')
+		},
+		onError: (error: Error) => {
+			toast.error(error.message)
 		},
 	})
 
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault()
-		const productData = {
-			...formData,
-			price: Number(formData.price),
-			quantity: Number(formData.quantity),
+
+		// Validate variants
+		if (!variants.length) {
+			alert('Please add at least one variant')
+			return
 		}
-		await productMutation.mutateAsync(productData)
+
+		if (variants.some((v) => !v.price)) {
+			alert('All variants must have a price')
+			return
+		}
+
+		// Check for duplicate combinations
+		const combinations = new Set()
+		const duplicates = variants.filter((variant) => {
+			const key = `${variant.size}-${variant.color}`
+			if (combinations.has(key)) return true
+			combinations.add(key)
+			return false
+		})
+
+		if (duplicates.length > 0) {
+			toast.error('Duplicate size and color combinations are not allowed')
+			return
+		}
+
+		await productMutation.mutateAsync(formData)
+	}
+
+	const addVariant = () => {
+		setVariants([
+			...variants,
+			{
+				size: '',
+				color: '',
+				price: 0,
+				quantity: 0,
+				price_id: '',
+				sku: '',
+			},
+		])
+	}
+
+	const removeVariant = (index: number) => {
+		setVariants(variants.filter((_, i) => i !== index))
+	}
+
+	const updateVariant = (
+		index: number,
+		field: keyof Variant,
+		value: string | number
+	) => {
+		const newVariants = [...variants]
+		newVariants[index] = {
+			...newVariants[index],
+			[field]: value,
+		}
+		setVariants(newVariants)
 	}
 
 	return (
 		<div className='container mx-auto p-4'>
-			<Card className='max-w-2xl mx-auto'>
+			<Card className='max-w-4xl mx-auto'>
 				<CardHeader>
 					<CardTitle>Add New Product</CardTitle>
 				</CardHeader>
 				<CardContent>
-					<form onSubmit={handleSubmit} className='space-y-4'>
-						<div className='space-y-2'>
-							<Label htmlFor='name'>Name</Label>
-							<Input
-								id='name'
-								value={formData.name}
-								onChange={(e) =>
-									setFormData({ ...formData, name: e.target.value })
-								}
-								required
-							/>
-						</div>
-
-						<div className='space-y-2'>
-							<Label htmlFor='description'>Description</Label>
-							<Textarea
-								id='description'
-								value={formData.description}
-								onChange={(e) =>
-									setFormData({ ...formData, description: e.target.value })
-								}
-								rows={3}
-							/>
-						</div>
-
-						<div className='grid grid-cols-2 gap-4'>
+					<form onSubmit={handleSubmit} className='space-y-6'>
+						<div className='space-y-4'>
 							<div className='space-y-2'>
-								<Label htmlFor='price'>Price</Label>
+								<Label htmlFor='name'>Name</Label>
 								<Input
-									id='price'
-									type='number'
-									value={formData.price || ''}
+									id='name'
+									value={formData.name}
 									onChange={(e) =>
-										setFormData({
-											...formData,
-											price:
-												e.target.value === ''
-													? 0
-													: Math.max(0, parseFloat(e.target.value) || 0),
-										})
+										setFormData({ ...formData, name: e.target.value })
 									}
 									required
-									min='0'
-									step='0.01'
 								/>
 							</div>
 
 							<div className='space-y-2'>
-								<Label htmlFor='quantity'>Quantity</Label>
-								<Input
-									id='quantity'
-									type='number'
-									value={formData.quantity || ''}
+								<Label htmlFor='description'>Description</Label>
+								<Textarea
+									id='description'
+									value={formData.description}
 									onChange={(e) =>
-										setFormData({
-											...formData,
-											quantity:
-												e.target.value === ''
-													? 0
-													: Math.max(0, parseInt(e.target.value) || 0),
-										})
+										setFormData({ ...formData, description: e.target.value })
 									}
-									required
-									min='0'
+									rows={3}
 								/>
+							</div>
+
+							<div className='flex gap-6'>
+								<div className='flex items-center space-x-2'>
+									<Checkbox
+										id='is_preorder'
+										checked={formData.is_preorder}
+										onCheckedChange={(checked: boolean) =>
+											setFormData({
+												...formData,
+												is_preorder: checked,
+											})
+										}
+									/>
+									<Label htmlFor='is_preorder'>Pre-order</Label>
+								</div>
+
+								<div className='flex items-center space-x-2'>
+									<Checkbox
+										id='is_notify'
+										checked={formData.is_notify}
+										onCheckedChange={(checked: boolean) =>
+											setFormData({
+												...formData,
+												is_notify: checked,
+											})
+										}
+									/>
+									<Label htmlFor='is_notify'>Notify when available</Label>
+								</div>
 							</div>
 						</div>
 
-						<div className='space-y-2'>
-							<Label htmlFor='price_id'>Stripe Price ID</Label>
-							<Input
-								id='price_id'
-								value={formData.price_id}
-								onChange={(e) =>
-									setFormData({ ...formData, price_id: e.target.value })
-								}
-								placeholder='price_...'
-							/>
-						</div>
-
-						<div className='space-y-2'>
-							<Label htmlFor='sizes'>Sizes (comma-separated)</Label>
-							<Input
-								id='sizes'
-								value={formData.sizes.join(', ')}
-								onChange={(e) =>
-									setFormData({
-										...formData,
-										sizes: e.target.value.split(',').map((s) => s.trim()),
-									})
-								}
-							/>
-						</div>
-
-						<div className='flex gap-6'>
-							<div className='flex items-center space-x-2'>
-								<Checkbox
-									id='is_preorder'
-									checked={formData.is_preorder}
-									onCheckedChange={(checked: boolean) =>
-										setFormData({
-											...formData,
-											is_preorder: checked,
-										})
-									}
-								/>
-								<Label htmlFor='is_preorder'>Pre-order</Label>
+						<div className='space-y-4'>
+							<div className='flex justify-between items-center'>
+								<Label>Product Variants</Label>
+								<Button
+									type='button'
+									variant='outline'
+									size='sm'
+									onClick={addVariant}
+								>
+									<Plus className='h-4 w-4 mr-2' />
+									Add Variant
+								</Button>
 							</div>
 
-							<div className='flex items-center space-x-2'>
-								<Checkbox
-									id='is_notify'
-									checked={formData.is_notify}
-									onCheckedChange={(checked: boolean) =>
-										setFormData({
-											...formData,
-											is_notify: checked,
-										})
-									}
-								/>
-								<Label htmlFor='is_notify'>Notify when available</Label>
+							<div className='space-y-4'>
+								{variants.map((variant, index) => (
+									<Card key={index}>
+										<CardContent className='pt-6'>
+											<div className='flex justify-between mb-4'>
+												<h3 className='font-medium'>Variant {index + 1}</h3>
+												{variants.length > 1 && (
+													<Button
+														type='button'
+														variant='ghost'
+														size='sm'
+														onClick={() => removeVariant(index)}
+													>
+														<X className='h-4 w-4' />
+													</Button>
+												)}
+											</div>
+											<div className='grid grid-cols-2 gap-4'>
+												<div className='space-y-2'>
+													<Label>Size</Label>
+													<Input
+														value={variant.size}
+														onChange={(e) =>
+															updateVariant(index, 'size', e.target.value)
+														}
+														placeholder='e.g., Small, Medium, Large'
+													/>
+												</div>
+												<div className='space-y-2'>
+													<Label>Color</Label>
+													<Input
+														value={variant.color}
+														onChange={(e) =>
+															updateVariant(index, 'color', e.target.value)
+														}
+														placeholder='e.g., Red, Blue, Green'
+													/>
+												</div>
+												<div className='space-y-2'>
+													<Label>Price</Label>
+													<Input
+														type='number'
+														value={variant.price || ''}
+														onChange={(e) =>
+															updateVariant(
+																index,
+																'price',
+																Math.max(0, parseFloat(e.target.value) || 0)
+															)
+														}
+														min='0'
+														step='0.01'
+														required
+													/>
+												</div>
+												<div className='space-y-2'>
+													<Label>Quantity</Label>
+													<Input
+														type='number'
+														value={variant.quantity || ''}
+														onChange={(e) =>
+															updateVariant(
+																index,
+																'quantity',
+																Math.max(0, parseInt(e.target.value) || 0)
+															)
+														}
+														min='0'
+														required
+													/>
+												</div>
+												<div className='space-y-2'>
+													<Label>Stripe Price ID</Label>
+													<Input
+														value={variant.price_id}
+														onChange={(e) =>
+															updateVariant(index, 'price_id', e.target.value)
+														}
+														placeholder='price_...'
+													/>
+												</div>
+												<div className='space-y-2'>
+													<Label>SKU</Label>
+													<Input
+														value={variant.sku}
+														onChange={(e) =>
+															updateVariant(index, 'sku', e.target.value)
+														}
+														placeholder='Stock Keeping Unit'
+													/>
+												</div>
+											</div>
+										</CardContent>
+									</Card>
+								))}
 							</div>
 						</div>
 

@@ -13,6 +13,15 @@ export async function getProductById(id: string) {
 				image_url,
 				is_main,
 				sort_order
+			),
+			variants:product_variants (
+				id,
+				size,
+				color,
+				price,
+				quantity,
+				price_id,
+				sku
 			)
 		`
 		)
