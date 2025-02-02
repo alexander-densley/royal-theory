@@ -13,6 +13,24 @@ import { useParams } from 'next/navigation'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import { motion } from 'framer-motion'
+import React from 'react'
+
+// Add useMediaQuery hook
+const useMediaQuery = (query: string) => {
+	const [matches, setMatches] = useState(false)
+
+	React.useEffect(() => {
+		const media = window.matchMedia(query)
+		if (media.matches !== matches) {
+			setMatches(media.matches)
+		}
+		const listener = () => setMatches(media.matches)
+		media.addEventListener('change', listener)
+		return () => media.removeEventListener('change', listener)
+	}, [matches, query])
+
+	return matches
+}
 
 export default function ProductPage() {
 	const params = useParams<{ id: string }>()
@@ -28,6 +46,9 @@ export default function ProductPage() {
 	const [isNotifying, setIsNotifying] = useState(false)
 	const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
 	const [isHovering, setIsHovering] = useState(false)
+
+	// Add check for mobile devices
+	const isDesktop = useMediaQuery('(min-width: 1024px)')
 
 	const { addToCart } = useCartStore((state) => state)
 	const { data, isPending, isError, isFetching } = useQuery({
@@ -188,13 +209,15 @@ export default function ProductPage() {
 							<div
 								ref={containerRef}
 								className='aspect-square relative rounded-lg overflow-hidden bg-gray-100 border border-gray-200 shadow-sm group'
-								onMouseEnter={() => setIsHovering(true)}
+								onMouseEnter={() => isDesktop && setIsHovering(true)}
 								onMouseLeave={() => {
-									setIsHovering(false)
-									setMousePosition({ x: 0, y: 0 })
+									if (isDesktop) {
+										setIsHovering(false)
+										setMousePosition({ x: 0, y: 0 })
+									}
 								}}
 								onMouseMove={(e) => {
-									if (!containerRef.current) return
+									if (!isDesktop || !containerRef.current) return
 
 									requestAnimationFrame(() => {
 										const rect = containerRef.current?.getBoundingClientRect()
@@ -206,8 +229,8 @@ export default function ProductPage() {
 									})
 								}}
 							>
-								{/* Preview box */}
-								{isHovering && (
+								{/* Preview box - only show on desktop */}
+								{isHovering && isDesktop && (
 									<div className='absolute top-4 right-4 w-32 h-32 border-2 border-gray-200 rounded-lg overflow-hidden bg-white shadow-lg z-20'>
 										<div className='relative w-full h-full'>
 											<Image
@@ -236,11 +259,12 @@ export default function ProductPage() {
 									fill
 									className='object-contain object-center transition-all duration-200 ease-out will-change-transform'
 									style={{
-										transform: isHovering
-											? `scale(2.5) translate(${50 - mousePosition.x}%, ${
-													50 - mousePosition.y
-											  }%)`
-											: 'scale(1) translate(0%, 0%)',
+										transform:
+											isHovering && isDesktop
+												? `scale(2.5) translate(${50 - mousePosition.x}%, ${
+														50 - mousePosition.y
+												  }%)`
+												: 'scale(1) translate(0%, 0%)',
 										transformOrigin: `${mousePosition.x}% ${mousePosition.y}%`,
 									}}
 									priority
