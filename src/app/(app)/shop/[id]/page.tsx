@@ -2,7 +2,7 @@
 
 import Image from 'next/image'
 import { useCartStore } from '@/providers/cart-store-provider'
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { getProductById } from '@/queryFn/products'
 import { Button } from '@/components/ui/button'
@@ -16,6 +16,7 @@ import { motion } from 'framer-motion'
 
 export default function ProductPage() {
 	const params = useParams<{ id: string }>()
+	const containerRef = useRef<HTMLDivElement>(null)
 	const [selectedImage, setSelectedImage] = useState<string | null>(null)
 	const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
 		null
@@ -25,6 +26,8 @@ export default function ProductPage() {
 	const [quantity, setQuantity] = useState(1)
 	const [notifyEmail, setNotifyEmail] = useState('')
 	const [isNotifying, setIsNotifying] = useState(false)
+	const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
+	const [isHovering, setIsHovering] = useState(false)
 
 	const { addToCart } = useCartStore((state) => state)
 	const { data, isPending, isError, isFetching } = useQuery({
@@ -182,12 +185,64 @@ export default function ProductPage() {
 					<div className='flex flex-col gap-6 lg:grid lg:grid-cols-12 lg:gap-x-8'>
 						{/* Main image */}
 						<div className='lg:col-span-10 order-1 lg:order-2'>
-							<div className='aspect-square relative rounded-lg overflow-hidden bg-gray-100'>
+							<div
+								ref={containerRef}
+								className='aspect-square relative rounded-lg overflow-hidden bg-gray-100 border border-gray-200 shadow-sm group'
+								onMouseEnter={() => setIsHovering(true)}
+								onMouseLeave={() => {
+									setIsHovering(false)
+									setMousePosition({ x: 0, y: 0 })
+								}}
+								onMouseMove={(e) => {
+									if (!containerRef.current) return
+
+									requestAnimationFrame(() => {
+										const rect = containerRef.current?.getBoundingClientRect()
+										if (!rect) return
+
+										const x = ((e.clientX - rect.left) / rect.width) * 100
+										const y = ((e.clientY - rect.top) / rect.height) * 100
+										setMousePosition({ x, y })
+									})
+								}}
+							>
+								{/* Preview box */}
+								{isHovering && (
+									<div className='absolute top-4 right-4 w-32 h-32 border-2 border-gray-200 rounded-lg overflow-hidden bg-white shadow-lg z-20'>
+										<div className='relative w-full h-full'>
+											<Image
+												src={selectedImage || mainImage}
+												alt={`${product.name} preview`}
+												fill
+												className='object-contain'
+												sizes='128px'
+											/>
+											<div
+												className='absolute border-2 border-blue-500 bg-blue-500/10'
+												style={{
+													width: '40%',
+													height: '40%',
+													left: `${mousePosition.x - 20}%`,
+													top: `${mousePosition.y - 20}%`,
+													transform: 'translate(0%, 0%)',
+												}}
+											/>
+										</div>
+									</div>
+								)}
 								<Image
 									src={selectedImage || mainImage}
 									alt={product.name}
 									fill
-									className='object-contain object-center'
+									className='object-contain object-center transition-all duration-200 ease-out will-change-transform'
+									style={{
+										transform: isHovering
+											? `scale(2.5) translate(${50 - mousePosition.x}%, ${
+													50 - mousePosition.y
+											  }%)`
+											: 'scale(1) translate(0%, 0%)',
+										transformOrigin: `${mousePosition.x}% ${mousePosition.y}%`,
+									}}
 									priority
 									sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
 								/>
@@ -249,7 +304,7 @@ export default function ProductPage() {
 											: product.variants?.length
 											? (() => {
 													// Get all valid variant prices based on selected size/color
-													//TODO: when a size is selected, it sets the price, unless both are selected it shouldnt update the price really
+													//TODO: when a size is selected, it sets the price, unless both are selected it shouldn't update the price really
 													const validVariants = product.variants.filter(
 														(v) =>
 															(!selectedSize || v.size === selectedSize) &&
