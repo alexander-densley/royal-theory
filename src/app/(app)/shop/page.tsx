@@ -23,7 +23,7 @@ function ProductCard({ product }: { product: Product }) {
 	return (
 		<Link href={`/shop/${product.id}`} className='group h-full'>
 			<div className='flex flex-col h-full p-4 space-y-4 rounded-xl transition-all duration-200 hover:shadow-lg hover:bg-gray-50 border border-transparent hover:border-gray-200'>
-				<div className='relative w-full aspect-[3/2] overflow-hidden rounded-lg bg-gray-100'>
+				<div className='relative w-full aspect-square overflow-hidden rounded-lg bg-gray-100'>
 					{product.product_images?.[0]?.image_url ? (
 						<>
 							<Image
@@ -176,7 +176,7 @@ export default function ShopPage() {
 		<main className='container mx-auto px-4 sm:px-6 py-8'>
 			<div className='max-w-2xl mx-auto text-center mb-12'>
 				<h1 className='text-3xl sm:text-4xl font-bold text-gray-900 mb-4'>
-					Our Products
+					PRODUCTS
 				</h1>
 			</div>
 			<Suspense
