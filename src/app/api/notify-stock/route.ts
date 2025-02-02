@@ -1,9 +1,9 @@
 import { createClient } from '@/utils/supabase/server'
-import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server'
 
 export async function POST(request: Request) {
 	try {
+		console.log('Received notification request')
 		const { productId, email } = await request.json()
 
 		if (!productId || !email) {
@@ -13,7 +13,6 @@ export async function POST(request: Request) {
 			)
 		}
 
-		const cookieStore = cookies()
 		const supabase = await createClient()
 
 		// First verify the product exists and is out of stock
@@ -25,13 +24,6 @@ export async function POST(request: Request) {
 
 		if (productError || !product) {
 			return NextResponse.json({ error: 'Product not found' }, { status: 404 })
-		}
-
-		if (product.quantity > 0) {
-			return NextResponse.json(
-				{ error: 'Product is in stock' },
-				{ status: 400 }
-			)
 		}
 
 		// Store the notification request
