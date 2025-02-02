@@ -3,12 +3,16 @@ import { persist } from 'zustand/middleware'
 import { toast } from 'sonner'
 
 export type CartProduct = {
+	id: number
+	productId: number
 	name: string
-	quantity: number
-	priceId: string
 	price: number
+	priceId: string
 	image: string
+	quantity: number
 	stock: number
+	size: string | null
+	color: string | null
 }
 
 export type CartState = {
