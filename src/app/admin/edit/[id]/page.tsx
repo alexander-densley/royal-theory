@@ -12,8 +12,13 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Checkbox } from '@/components/ui/checkbox'
-import { Loader2, X } from 'lucide-react'
+import { Loader2, X, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import {
+	Popover,
+	PopoverContent,
+	PopoverTrigger,
+} from '@/components/ui/popover'
 
 export default function EditProductPage() {
 	const router = useRouter()
@@ -188,6 +193,21 @@ export default function EditProductPage() {
 		},
 	})
 
+	// Add delete product mutation after other mutations
+	const deleteProductMutation = useMutation({
+		mutationFn: async () => {
+			const { error } = await supabase
+				.from('products')
+				.delete()
+				.eq('id', params.id)
+			if (error) throw error
+		},
+		onSuccess: () => {
+			queryClient.invalidateQueries({ queryKey: ['products'] })
+			router.push('/admin')
+		},
+	})
+
 	const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
 		e.preventDefault()
 		const productData = {
@@ -210,6 +230,11 @@ export default function EditProductPage() {
 			...prev,
 			mainImageId: imageId,
 		}))
+	}
+
+	// Add handleDelete function before return statement
+	const handleDelete = async () => {
+		await deleteProductMutation.mutateAsync()
 	}
 
 	if (isLoading) {
@@ -236,8 +261,45 @@ export default function EditProductPage() {
 	return (
 		<div className='container mx-auto p-4'>
 			<Card className='max-w-2xl mx-auto'>
-				<CardHeader>
+				<CardHeader className='flex flex-row items-center justify-between'>
 					<CardTitle>Edit Product</CardTitle>
+					<Popover>
+						<PopoverTrigger asChild>
+							<Button
+								variant='ghost'
+								size='icon'
+								className='text-gray-500 hover:text-red-500'
+							>
+								<Trash2 className='h-5 w-5' />
+							</Button>
+						</PopoverTrigger>
+						<PopoverContent className='w-80'>
+							<div className='space-y-4'>
+								<h4 className='font-medium'>Delete Product</h4>
+								<p className='text-sm text-gray-500'>
+									Are you sure you want to delete this product? This action
+									cannot be undone.
+								</p>
+								<div className='flex justify-end gap-2'>
+									<Button
+										variant='destructive'
+										size='sm'
+										onClick={handleDelete}
+										disabled={deleteProductMutation.isPending}
+									>
+										{deleteProductMutation.isPending ? (
+											<>
+												<Loader2 className='mr-2 h-4 w-4 animate-spin' />
+												Deleting...
+											</>
+										) : (
+											'Delete'
+										)}
+									</Button>
+								</div>
+							</div>
+						</PopoverContent>
+					</Popover>
 				</CardHeader>
 				<CardContent>
 					<form onSubmit={handleSubmit} className='space-y-4'>

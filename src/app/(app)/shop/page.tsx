@@ -66,11 +66,18 @@ function ProductCard({ product }: { product: Product }) {
 								Pre-order
 							</span>
 						)}
-						{product.quantity > 0 && !product.is_preorder && (
-							<span className='px-2 py-1 text-sm font-medium text-green-600 bg-green-50 rounded-full'>
-								In Stock
+						{product.is_notify && (
+							<span className='px-2 py-1 text-sm font-medium text-yellow-600 bg-yellow-50 rounded-full'>
+								Notify Me
 							</span>
 						)}
+						{product.quantity > 0 &&
+							!product.is_preorder &&
+							!product.is_notify && (
+								<span className='px-2 py-1 text-sm font-medium text-green-600 bg-green-50 rounded-full'>
+									In Stock
+								</span>
+							)}
 					</div>
 				</div>
 			</div>
