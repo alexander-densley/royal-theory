@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/utils/server'
+import { createClient } from '@/utils/supabase/server'
 
 export async function GET(req: NextRequest) {
 	const { searchParams } = new URL(req.url)
 	const id = searchParams.get('id') as unknown as number
 
-	const supabase = createClient()
+	const supabase = await createClient()
 	const { data, error } = await supabase
 		.from('product')
 		.select('*')

@@ -1,8 +1,25 @@
-export const getProductById = async (id: string) => {
-	const response = await fetch(`/api/get-product?id=${id}`)
-	if (!response.ok) {
-		throw new Error('Failed to fetch users')
-	}
-	const data = await response.json()
-	return data
+import { createClient } from '@/utils/supabase/client'
+
+export async function getProductById(id: string) {
+	const supabase = createClient()
+
+	const { data, error } = await supabase
+		.from('products')
+		.select(
+			`
+			*,
+			product_images (
+				id,
+				image_url,
+				is_main,
+				sort_order
+			)
+		`
+		)
+		.eq('id', id)
+		.single()
+
+	if (error) throw error
+
+	return { data }
 }
