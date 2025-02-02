@@ -5,7 +5,7 @@ import { ProductImage } from '@/types/database'
 import { useParams } from 'next/navigation'
 import { createClient } from '@/utils/supabase/client'
 import Image from 'next/image'
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -20,6 +20,7 @@ export default function EditProductPage() {
 	const params = useParams()
 	const id = params.id as string
 	const supabase = createClient()
+	const queryClient = useQueryClient()
 
 	const [formData, setFormData] = useState({
 		name: '',
@@ -33,6 +34,12 @@ export default function EditProductPage() {
 	})
 
 	const [imageFiles, setImageFiles] = useState<File[]>([])
+	const [pendingImageChanges, setPendingImageChanges] = useState<{
+		mainImageId?: number
+		deletedImageIds: number[]
+	}>({
+		deletedImageIds: [],
+	})
 
 	// Query for fetching the product
 	const { data: product, isLoading } = useQuery({
@@ -48,6 +55,11 @@ export default function EditProductPage() {
 			return data
 		},
 	})
+
+	// Reset pending changes when product data changes
+	useEffect(() => {
+		setPendingImageChanges({ deletedImageIds: [] })
+	}, [product])
 
 	// Set initial form data when product is loaded
 	useEffect(() => {
@@ -100,12 +112,14 @@ export default function EditProductPage() {
 
 	// Mutation for deleting images
 	const deleteImageMutation = useMutation({
-		mutationFn: async (imageId: number) => {
-			const { error } = await supabase
-				.from('product_images')
-				.delete()
-				.eq('id', imageId)
-			if (error) throw error
+		mutationFn: async (imageIds: number[]) => {
+			for (const imageId of imageIds) {
+				const { error } = await supabase
+					.from('product_images')
+					.delete()
+					.eq('id', imageId)
+				if (error) throw error
+			}
 		},
 	})
 
@@ -145,12 +159,31 @@ export default function EditProductPage() {
 			return parseInt(id)
 		},
 		onSuccess: async (productId) => {
+			// Handle image changes
+			if (pendingImageChanges.deletedImageIds.length > 0) {
+				await deleteImageMutation.mutateAsync(
+					pendingImageChanges.deletedImageIds
+				)
+			}
+
+			if (pendingImageChanges.mainImageId) {
+				await setMainImageMutation.mutateAsync({
+					imageId: pendingImageChanges.mainImageId,
+					productId,
+				})
+			}
+
 			if (imageFiles.length > 0) {
 				await uploadImageMutation.mutateAsync({
 					productId,
 					files: imageFiles,
 				})
 			}
+
+			// Invalidate both the single product and products list queries
+			queryClient.invalidateQueries({ queryKey: ['product', id] })
+			queryClient.invalidateQueries({ queryKey: ['products'] })
+
 			router.push('/admin')
 		},
 	})
@@ -165,6 +198,20 @@ export default function EditProductPage() {
 		await productMutation.mutateAsync(productData)
 	}
 
+	const handleDeleteImage = (imageId: number) => {
+		setPendingImageChanges((prev) => ({
+			...prev,
+			deletedImageIds: [...prev.deletedImageIds, imageId],
+		}))
+	}
+
+	const handleSetMainImage = (imageId: number) => {
+		setPendingImageChanges((prev) => ({
+			...prev,
+			mainImageId: imageId,
+		}))
+	}
+
 	if (isLoading) {
 		return (
 			<div className='container mx-auto p-4 flex items-center justify-center'>
@@ -172,6 +219,19 @@ export default function EditProductPage() {
 			</div>
 		)
 	}
+
+	// Filter out deleted images and apply pending main image change
+	const displayImages = product?.product_images
+		?.filter(
+			(image: ProductImage) =>
+				!pendingImageChanges.deletedImageIds.includes(image.id)
+		)
+		.map((image: ProductImage) => ({
+			...image,
+			is_main: pendingImageChanges.mainImageId
+				? image.id === pendingImageChanges.mainImageId
+				: image.is_main,
+		}))
 
 	return (
 		<div className='container mx-auto p-4'>
@@ -318,11 +378,11 @@ export default function EditProductPage() {
 							/>
 						</div>
 
-						{product?.product_images && (
+						{displayImages && (
 							<div className='space-y-2'>
 								<Label>Current Images</Label>
 								<div className='flex flex-wrap gap-3'>
-									{product.product_images.map((image: ProductImage) => (
+									{displayImages.map((image: ProductImage) => (
 										<div key={image.id} className='relative group'>
 											<Image
 												src={image.image_url}
@@ -340,7 +400,7 @@ export default function EditProductPage() {
 													variant='destructive'
 													size='icon'
 													className='h-6 w-6'
-													onClick={() => deleteImageMutation.mutate(image.id)}
+													onClick={() => handleDeleteImage(image.id)}
 												>
 													<X className='h-4 w-4' />
 												</Button>
@@ -349,12 +409,7 @@ export default function EditProductPage() {
 														variant='secondary'
 														size='icon'
 														className='h-6 w-6'
-														onClick={() =>
-															setMainImageMutation.mutate({
-																imageId: image.id,
-																productId: parseInt(id),
-															})
-														}
+														onClick={() => handleSetMainImage(image.id)}
 														title='Set as main image'
 													>
 														★

@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { createClient } from '@/utils/supabase/client'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation'
 export default function AddProductPage() {
 	const router = useRouter()
 	const supabase = createClient()
+	const queryClient = useQueryClient()
 
 	const [formData, setFormData] = useState({
 		name: '',
@@ -81,6 +82,7 @@ export default function AddProductPage() {
 					files: imageFiles,
 				})
 			}
+			queryClient.invalidateQueries({ queryKey: ['products'] })
 			router.push('/admin')
 		},
 	})

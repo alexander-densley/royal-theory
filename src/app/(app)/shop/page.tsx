@@ -94,7 +94,7 @@ async function ProductGrid() {
 		`
 		)
 		.eq('product_images.is_main', true)
-		.order('created_at', { ascending: false })
+		.order('sort_order', { ascending: true })
 
 	if (error) {
 		console.error('Error fetching products:', error)

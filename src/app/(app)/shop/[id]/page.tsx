@@ -133,7 +133,7 @@ export default function ProductPage() {
 									src={selectedImage || mainImage}
 									alt={product.name}
 									fill
-									className='object-cover object-center'
+									className='object-contain object-center'
 									priority
 									sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
 								/>
@@ -161,7 +161,7 @@ export default function ProductPage() {
 										)}
 									>
 										<Image
-											className='absolute inset-0 w-full h-full object-cover'
+											className='absolute inset-0 w-full h-full object-contain'
 											src={image.image_url}
 											alt={`${product.name} view`}
 											width={112}
