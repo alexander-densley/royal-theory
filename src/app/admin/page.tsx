@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Loader2 } from 'lucide-react'
+import { Loader2, GripVertical } from 'lucide-react'
 import Link from 'next/link'
 import {
 	DndContext,
@@ -34,84 +34,6 @@ interface SortableProductCardProps {
 	onSetMainImage: (imageId: number, productId: number) => void
 }
 
-function ProductCard({ product, onSetMainImage }: SortableProductCardProps) {
-	return (
-		<Card>
-			<CardContent className='pt-6'>
-				<div className='flex justify-between items-start mb-4'>
-					<div>
-						<h3 className='font-semibold text-lg'>{product.name}</h3>
-						<p className='text-sm text-muted-foreground'>${product.price}</p>
-						{product.price_id && (
-							<p className='text-xs text-muted-foreground mt-1'>
-								Price ID: {product.price_id}
-							</p>
-						)}
-						<p className='text-sm text-muted-foreground mt-1'>
-							Quantity: {product.quantity}
-						</p>
-						{product.sizes && product.sizes.length > 0 && (
-							<p className='text-sm text-muted-foreground mt-1'>
-								Sizes: {product.sizes.join(', ')}
-							</p>
-						)}
-						{product.description && (
-							<p className='text-sm mt-2 line-clamp-2'>{product.description}</p>
-						)}
-					</div>
-					<Button asChild variant='secondary'>
-						<Link href={`/admin/edit/${product.id}`}>Edit</Link>
-					</Button>
-				</div>
-
-				<div className='flex flex-wrap gap-3 mt-4'>
-					{product.product_images?.map((image: ProductImage) => (
-						<div key={image.id} className='relative group'>
-							<Image
-								src={image.image_url}
-								alt={product.name}
-								width={80}
-								height={80}
-								className={`object-cover rounded-md ${
-									image.is_main ? 'ring-2 ring-primary ring-offset-2' : ''
-								}`}
-							/>
-							{image.is_main ? (
-								<span className='absolute bottom-1 left-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded'>
-									Main
-								</span>
-							) : (
-								<Button
-									variant='secondary'
-									size='icon'
-									className='h-6 w-6 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity'
-									onClick={() => onSetMainImage(image.id, product.id)}
-									title='Set as main image'
-								>
-									★
-								</Button>
-							)}
-						</div>
-					))}
-				</div>
-
-				<div className='flex gap-2 mt-4'>
-					{product.is_preorder && (
-						<span className='text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded'>
-							Pre-order
-						</span>
-					)}
-					{product.is_notify && (
-						<span className='text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded'>
-							Notify When Available
-						</span>
-					)}
-				</div>
-			</CardContent>
-		</Card>
-	)
-}
-
 function SortableProductCard({
 	product,
 	onSetMainImage,
@@ -129,12 +51,96 @@ function SortableProductCard({
 		transform: CSS.Transform.toString(transform),
 		transition: transition || 'transform 300ms ease, opacity 300ms ease',
 		opacity: isDragging ? 0.3 : 1,
-		cursor: 'grab',
 	}
 
 	return (
-		<div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-			<ProductCard product={product} onSetMainImage={onSetMainImage} />
+		<div ref={setNodeRef} style={style}>
+			<Card>
+				<CardContent className='pt-6'>
+					<div className='flex justify-between items-start mb-4'>
+						<div className='flex items-start gap-2'>
+							<div
+								{...attributes}
+								{...listeners}
+								className='cursor-grab hover:text-primary mt-1'
+							>
+								<GripVertical className='h-5 w-5' />
+							</div>
+							<div>
+								<h3 className='font-semibold text-lg'>{product.name}</h3>
+								<p className='text-sm text-muted-foreground'>
+									${product.price}
+								</p>
+								{product.price_id && (
+									<p className='text-xs text-muted-foreground mt-1'>
+										Price ID: {product.price_id}
+									</p>
+								)}
+								<p className='text-sm text-muted-foreground mt-1'>
+									Quantity: {product.quantity}
+								</p>
+								{product.sizes && product.sizes.length > 0 && (
+									<p className='text-sm text-muted-foreground mt-1'>
+										Sizes: {product.sizes.join(', ')}
+									</p>
+								)}
+								{product.description && (
+									<p className='text-sm mt-2 line-clamp-2'>
+										{product.description}
+									</p>
+								)}
+							</div>
+						</div>
+						<Button asChild variant='secondary'>
+							<Link href={`/admin/edit/${product.id}`}>Edit</Link>
+						</Button>
+					</div>
+
+					<div className='flex flex-wrap gap-3 mt-4'>
+						{product.product_images?.map((image: ProductImage) => (
+							<div key={image.id} className='relative group'>
+								<Image
+									src={image.image_url}
+									alt={product.name}
+									width={80}
+									height={80}
+									className={`object-cover rounded-md ${
+										image.is_main ? 'ring-2 ring-primary ring-offset-2' : ''
+									}`}
+								/>
+								{image.is_main ? (
+									<span className='absolute bottom-1 left-1 bg-primary text-primary-foreground text-xs px-1.5 py-0.5 rounded'>
+										Main
+									</span>
+								) : (
+									<Button
+										variant='secondary'
+										size='icon'
+										className='h-6 w-6 absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity'
+										onClick={() => onSetMainImage(image.id, product.id)}
+										title='Set as main image'
+									>
+										★
+									</Button>
+								)}
+							</div>
+						))}
+					</div>
+
+					<div className='flex gap-2 mt-4'>
+						{product.is_preorder && (
+							<span className='text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded'>
+								Pre-order
+							</span>
+						)}
+						{product.is_notify && (
+							<span className='text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded'>
+								Notify When Available
+							</span>
+						)}
+					</div>
+				</CardContent>
+			</Card>
 		</div>
 	)
 }
@@ -276,7 +282,7 @@ export default function AdminPage() {
 					>
 						{activeProduct ? (
 							<div className='opacity-80 rotate-3 scale-105'>
-								<ProductCard
+								<SortableProductCard
 									product={activeProduct}
 									onSetMainImage={(imageId, productId) =>
 										setMainImageMutation.mutate({ imageId, productId })
