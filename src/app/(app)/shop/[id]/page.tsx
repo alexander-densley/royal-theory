@@ -315,7 +315,7 @@ export default function ProductPage() {
 
 					{/* Product info */}
 					<div className='lg:sticky lg:top-24 lg:self-start'>
-						<div className='flex flex-col gap-6'>
+						<div className='flex flex-col gap-6 pb-[180px] lg:pb-0'>
 							{/* Product header */}
 							<div className='border-b border-gray-200 pb-6'>
 								<h1 className='text-2xl sm:text-3xl font-semibold tracking-tight text-gray-900'>
