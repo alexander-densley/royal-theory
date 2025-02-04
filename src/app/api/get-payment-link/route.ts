@@ -8,6 +8,9 @@ export async function POST(req: NextRequest) {
 
 	const paymentLink = await stripe.paymentLinks.create({
 		line_items,
+		shipping_address_collection: {
+			allowed_countries: ['US'],
+		},
 	})
 	return NextResponse.json({ url: paymentLink.url }, { status: 200 })
 }
