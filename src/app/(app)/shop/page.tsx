@@ -44,11 +44,11 @@ function ProductCard({ product }: { product: Product }) {
 							<Image
 								src={product.product_images[0].image_url}
 								alt={product.name}
-								fill
-								className='object-cover transition-transform duration-300 group-hover:scale-105'
+								width={500}
+								height={500}
+								className='object-cover w-full h-full transition-transform duration-300 group-hover:scale-105'
 								sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
-								priority={false}
-								quality={80}
+								quality={75}
 								loading='lazy'
 							/>
 							{product.description && (
