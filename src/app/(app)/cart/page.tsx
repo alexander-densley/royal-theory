@@ -26,6 +26,18 @@ function CartPage() {
 					line_items: products.map((product: CartProduct) => ({
 						price: product.priceId,
 						quantity: product.quantity,
+						metadata: {
+							product_id: product.id,
+							product_name: product.name,
+							product_image: product.image,
+							product_price: product.price,
+							product_quantity: product.quantity,
+							product_size: product.size,
+							product_color: product.color,
+							product_stock: product.stock,
+							product_price_id: product.priceId,
+							product_image_url: product.image,
+						},
 					})),
 				}),
 			})
