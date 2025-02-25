@@ -46,6 +46,7 @@ export default function ProductPage() {
 	const [isNotifying, setIsNotifying] = useState(false)
 	const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
 	const [isHovering, setIsHovering] = useState(false)
+	const [thumbnailsLoaded, setThumbnailsLoaded] = useState(false)
 
 	// Add check for mobile devices
 	const isDesktop = useMediaQuery('(min-width: 1024px)')
@@ -197,6 +198,10 @@ export default function ProductPage() {
 		return true
 	}
 
+	const generateBlurPlaceholder = (color = 'f3f4f6') => {
+		return `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%23${color}'/%3E%3C/svg%3E`
+	}
+
 	return (
 		<div>
 			{/* Main content */}
@@ -257,6 +262,12 @@ export default function ProductPage() {
 									src={selectedImage || mainImage}
 									alt={product.name}
 									fill
+									placeholder='blur'
+									blurDataURL={generateBlurPlaceholder()}
+									onLoadingComplete={() => {
+										// Load thumbnails after main image loads
+										setThumbnailsLoaded(true)
+									}}
 									className='object-contain object-center transition-all duration-200 ease-out will-change-transform'
 									style={{
 										transform:
@@ -269,6 +280,7 @@ export default function ProductPage() {
 									}}
 									priority
 									sizes='(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw'
+									quality={80}
 								/>
 							</div>
 						</div>
@@ -276,32 +288,35 @@ export default function ProductPage() {
 						{/* Thumbnail column */}
 						<div className='lg:col-span-2 order-2 lg:order-1'>
 							<div className='flex gap-4 pb-2 lg:pb-0 lg:flex-col lg:h-[440px] overflow-x-auto lg:overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 snap-x lg:snap-none p-1'>
-								{sortedImages.map((image, index) => (
-									<motion.div
-										initial={{ opacity: 0, x: -20 }}
-										animate={{ opacity: 1, x: 0 }}
-										key={image.id}
-										onClick={() => setSelectedImage(image.image_url)}
-										className={cn(
-											'cursor-pointer transition-all duration-200',
-											'rounded-md overflow-hidden shadow-sm hover:shadow-md',
-											'flex-shrink-0 relative w-20 h-20 lg:w-full lg:h-[80px]',
-											'snap-start',
-											(selectedImage || mainImage) === image.image_url
-												? 'ring-2 ring-blue-500 ring-offset-2'
-												: 'opacity-70 hover:opacity-100',
-											index >= 5 ? 'lg:mt-0' : ''
-										)}
-									>
-										<Image
-											className='absolute inset-0 w-full h-full object-contain'
-											src={image.image_url}
-											alt={`${product.name} view`}
-											width={112}
-											height={112}
-										/>
-									</motion.div>
-								))}
+								{thumbnailsLoaded &&
+									sortedImages.map((image, index) => (
+										<motion.div
+											initial={{ opacity: 0, x: -20 }}
+											animate={{ opacity: 1, x: 0 }}
+											key={image.id}
+											onClick={() => setSelectedImage(image.image_url)}
+											className={cn(
+												'cursor-pointer transition-all duration-200',
+												'rounded-md overflow-hidden shadow-sm hover:shadow-md',
+												'flex-shrink-0 relative w-20 h-20 lg:w-full lg:h-[80px]',
+												'snap-start',
+												(selectedImage || mainImage) === image.image_url
+													? 'ring-2 ring-blue-500 ring-offset-2'
+													: 'opacity-70 hover:opacity-100',
+												index >= 5 ? 'lg:mt-0' : ''
+											)}
+										>
+											<Image
+												className='absolute inset-0 w-full h-full object-contain'
+												src={image.image_url}
+												alt={`${product.name} view`}
+												width={112}
+												height={112}
+												quality={75}
+												loading='lazy'
+											/>
+										</motion.div>
+									))}
 							</div>
 							{sortedImages.length > 5 && (
 								<div className='hidden lg:flex justify-center mt-2'>
