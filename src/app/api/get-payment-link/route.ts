@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import Stripe from 'stripe'
-import { CartProduct } from '@/stores/cart-store'
 
 export async function POST(req: NextRequest) {
 	const { line_items, metadata } = await req.json()
