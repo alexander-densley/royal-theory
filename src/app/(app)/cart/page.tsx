@@ -28,9 +28,18 @@ function CartPage() {
 						quantity: product.quantity,
 					})),
 					metadata: {
-						products: products.map((product: CartProduct) => ({
-							...product,
-						})),
+						products: JSON.stringify(
+							products.map((product: CartProduct) => ({
+								id: product.id,
+								name: product.name,
+								image: product.image,
+								price: product.price,
+								quantity: product.quantity,
+								size: product.size,
+								color: product.color,
+								priceId: product.priceId,
+							}))
+						),
 					},
 				}),
 			})
