@@ -9,6 +9,7 @@ export async function POST(req: NextRequest) {
 	// Parse the stringified products array
 	const parsedProducts = JSON.parse(metadata.products)
 
+	console.log(parsedProducts)
 	const paymentLink = await stripe.paymentLinks.create({
 		line_items,
 		metadata: {
